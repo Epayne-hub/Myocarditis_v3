@@ -281,7 +281,7 @@ $(document).ready(function () {
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
 <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
-workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger"
+workflowr <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span>
 </button>
 </p>
@@ -292,8 +292,8 @@ aria-hidden="true"></span>
 </li>
 <li>
 <a data-toggle="tab" href="#checks"> Checks <span
-class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> </a>
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
 </li>
 <li>
 <a data-toggle="tab" href="#versions">Past versions</a>
@@ -302,18 +302,17 @@ aria-hidden="true"></span> </a>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2026-03-10
+<strong>Last updated:</strong> 2026-03-11
 </p>
 <p>
 <strong>Checks:</strong> <span
-class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 1
+class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 2
 <span class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> 1
+aria-hidden="true"></span> 0
 </p>
 <p>
-<strong>Knit directory:</strong> <code>Myocarditis EMB Project
-v3/</code> <span class="glyphicon glyphicon-question-sign"
-aria-hidden="true"
+<strong>Knit directory:</strong> <code>Myocarditis_v3/</code> <span
+class="glyphicon glyphicon-question-sign" aria-hidden="true"
 title="This is the local directory in which the code in this file was executed.">
 </span>
 </p>
@@ -332,34 +331,33 @@ versions</em> tab lists the development history.
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguncommittedchanges">
-<span class="glyphicon glyphicon-exclamation-sign text-danger"
-aria-hidden="true"></span> <strong>R Markdown file:</strong> uncommitted
-changes </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success"
+aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date
+</a>
 </p>
 </div>
-<div id="strongRMarkdownfilestronguncommittedchanges"
+<div id="strongRMarkdownfilestronguptodate"
 class="panel-collapse collapse">
 <div class="panel-body">
-<p>The R Markdown file has unstaged changes. To know which version of
-the R Markdown file created these results, you’ll want to first commit
-it to the Git repo. If you’re still working on the analysis, you can
-ignore this warning. When you’re finished, you can run
-<code>wflow_publish</code> to commit the R Markdown file and build the
-HTML.</p>
+<p>Great! Since the R Markdown file has been committed to the Git
+repository, you know the exact version of the code that produced these
+results.</p>
 </div>
 </div>
 </div>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongfe297f2">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomEpaynehubMyocarditisv3tree18dc62fa5376e20f29112ed7fc08edd208555525targetblank18dc62fa">
 <span class="glyphicon glyphicon-ok text-success"
-aria-hidden="true"></span> <strong>Repository version:</strong> fe297f2
+aria-hidden="true"></span> <strong>Repository version:</strong>
+<a href="https://github.com/Epayne-hub/Myocarditis_v3/tree/18dc62fa5376e20f29112ed7fc08edd208555525" target="_blank">18dc62f</a>
 </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongfe297f2"
+<div
+id="strongRepositoryversionstrongahrefhttpsgithubcomEpaynehubMyocarditisv3tree18dc62fa5376e20f29112ed7fc08edd208555525targetblank18dc62fa"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -368,7 +366,8 @@ and connecting the code version to the results is critical for
 reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version fe297f2.
+The results in this page were generated with repository version
+<a href="https://github.com/Epayne-hub/Myocarditis_v3/tree/18dc62fa5376e20f29112ed7fc08edd208555525" target="_blank">18dc62f</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -383,197 +382,10 @@ were generated:
 </p>
 <pre><code>
 Ignored files:
-    Ignored:    .DS_Store
-    Ignored:    .RData
-    Ignored:    .Rapp.history
-    Ignored:    .Rhistory
-    Ignored:    .Trash/
-    Ignored:    .empty/
-    Ignored:    .fsav/
-    Ignored:    Documents/.DS_Store
-    Ignored:    Documents/GitHub/.DS_Store
-    Ignored:    Documents/GitHub/.Rhistory
-    Ignored:    Documents/GitHub/.Rproj.user/
-    Ignored:    Documents/GitHub/Immpath CMD/
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/.DS_Store
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/.Rhistory
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/.Rproj.user/
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/analysis/.DS_Store
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/data/Merged TCRM rds/
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq PBMCs/
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/data/TCRM/
-    Ignored:    Documents/GitHub/Myocarditis EMB Project v3/data/scRNAseq PBMCs/
+    Ignored:    data/
 
 Untracked files:
-    Untracked:  .CFUserTextEncoding
-    Untracked:  .R/
-    Untracked:  .Renviron
-    Untracked:  .Xauthority
-    Untracked:  .bash_history
-    Untracked:  .bash_profile
-    Untracked:  .bash_profile.save
-    Untracked:  .bash_sessions/
-    Untracked:  .cache/
-    Untracked:  .clickshare_button/
-    Untracked:  .conda/
-    Untracked:  .config/
-    Untracked:  .cups/
-    Untracked:  .cursor/
-    Untracked:  .gitconfig
-    Untracked:  .gitignore.swp
-    Untracked:  .local/
-    Untracked:  .mcf/
-    Untracked:  .omnissa/
-    Untracked:  .serverauth.1006
-    Untracked:  .serverauth.1009
-    Untracked:  .serverauth.2321
-    Untracked:  .serverauth.2500
-    Untracked:  .serverauth.36479
-    Untracked:  .serverauth.58859
-    Untracked:  .serverauth.70331
-    Untracked:  .ssh/
-    Untracked:  .swiftpm/
-    Untracked:  .vim/
-    Untracked:  .viminfo
-    Untracked:  .virtualenvs/
-    Untracked:  .vmware/
-    Untracked:  .zsh_history
-    Untracked:  .zsh_sessions/
-    Untracked:  00 Archive/
-    Untracked:  01 Projects/
-    Untracked:  Applications/
-    Untracked:  Clinical Biostatistics all packages.Rmd
-    Untracked:  Creative Cloud Files/
-    Untracked:  Desktop/
-    Untracked:  Documents/.Passport Hanna Payne.pdf-mEit
-    Untracked:  Documents/.Property Potempa Trust.pdf-eH06
-    Untracked:  Documents/.US Visa Hanna.pdf-NhQa
-    Untracked:  Documents/.localized
-    Untracked:  Documents/00 Inbox/
-    Untracked:  Documents/01 Projects/
-    Untracked:  Documents/02 Areas/
-    Untracked:  Documents/03 Ressources/
-    Untracked:  Documents/04 Archive/
-    Untracked:  Documents/AM/
-    Untracked:  Documents/Cover letter_Feb_2026-1.docx
-    Untracked:  Documents/Cover letter_Feb_2026.docx
-    Untracked:  Documents/GREM2_Expression/
-    Untracked:  Documents/GitHub/AM/
-    Untracked:  Documents/GitHub/Cardiac Sarcoidosis/
-    Untracked:  Documents/GitHub/Gaussian_Copula/
-    Untracked:  Documents/GitHub/Immpath_CMD/
-    Untracked:  Documents/GitHub/Immpath_Report/
-    Untracked:  Documents/GitHub/Myocarditis EMB Project v3/R/
-    Untracked:  Documents/GitHub/Myocarditis EMB Project v3/analysis/Clinical/
-    Untracked:  Documents/GitHub/Myocarditis EMB Project v3/analysis/TCRM/
-    Untracked:  Documents/GitHub/Myocarditis EMB Project v3/analysis/scRNAseq PBMCs/
-    Untracked:  Documents/GitHub/Myocarditis EMB Project v3/analysis/snRNAseq EMBs/
-    Untracked:  Documents/GitHub/Myocarditis PBMCs FACS/
-    Untracked:  Documents/GitHub/Myocarditis-snRNAseq/
-    Untracked:  Documents/GitHub/Myocarditis/
-    Untracked:  Documents/GitHub/Myocarditis_v2/
-    Untracked:  Documents/GitHub/Seurat_Browser/
-    Untracked:  Documents/GitHub/StrainExtractor/
-    Untracked:  Documents/GitHub/kinetics/
-    Untracked:  Documents/GitHub/marker_correlations/
-    Untracked:  Documents/Microbiome_Report_AM64-1.html
-    Untracked:  Documents/Microbiome_Report_AM64.html
-    Untracked:  Documents/Projects/
-    Untracked:  Documents/Seurat/
-    Untracked:  Documents/~$ do list for Seboo.docx
-    Untracked:  Documents/~$CLS Q9 Therapie Lungenkarzinom Pharma.docx
-    Untracked:  Documents/~$E Projekt Schwerstbehinderung.docx
-    Untracked:  Documents/~$E Projekt.docx
-    Untracked:  Documents/~$E der Fall Ashley Artikel aus dem Spiegel.docx
-    Untracked:  Documents/~$FSGS.docx
-    Untracked:  Documents/~$M Hörsturz HA Protokoll zur Literatursuche.docxx
-    Untracked:  Documents/~$M Hörsturz Verlauf HA Literaturrecherche.docxx
-    Untracked:  Documents/~$M Wahlpflichtwoche Seminar Hörsturz .docxx
-    Untracked:  Documents/~$armakologie Antibiotika Übersicht.docxx
-    Untracked:  Documents/~$armakologie Diuretika.docx
-    Untracked:  Documents/~$diologie Schema Thorax.docx
-    Untracked:  Documents/~$eckliste St. gallen. docx.docx
-    Untracked:  Documents/~$erdigungsrede für Gerhard.docxx
-    Untracked:  Documents/~$hlpflichtwoche gynäkologische Endokrinologie.docxx
-    Untracked:  Documents/~$ief an Miranda.docx
-    Untracked:  Documents/~$ily S. Payne - Neuroradiology doctorate thesis setting - latest version.docx
-    Untracked:  Documents/~$inische Chemie 6. Semester Säure und Wasserhaushalt Knochenstoffwechsel Seminar.docxx
-    Untracked:  Documents/~$inische Chemie Entzündung & Autoimmunität Seminar.docxcx
-    Untracked:  Documents/~$inische Chemie Entzündung und Autoimmunität Seminar.docxcx
-    Untracked:  Documents/~$inische Chemie Hämostasiologie Labordiagnostik Seminar.docxx
-    Untracked:  Documents/~$llmacht Maria Potempa Opel.docx
-    Untracked:  Documents/~$llmacht Template.docx
-    Untracked:  Documents/~$nerva Kurs PJ.docx
-    Untracked:  Documents/~$orld Step 1 schedule.docx
-    Untracked:  Documents/~$per Abstract RAP Dec. 13.2020 Neuroradiology.docx
-    Untracked:  Documents/~$per Neuroradiology Edited Version Dec. 13 2020 .docx
-    Untracked:  Documents/~$rmatologie Fachbegriffe WS 17 18.docx
-    Untracked:  Documents/~$werbung für eine Famulatur Frühjahr 2018 .docxcx
-    Untracked:  Documents/~$ysiologie Referat NEW shortened SoSe 2016 Ödeme und Mikrozirkulation.docxx
-    Untracked:  Documents/~$ysiologie Referat SoSe 2016 Notes Ödeme und Mikrozirkulation.docxx
-    Untracked:  Downloads/
-    Untracked:  EMBs_GREM2_expression_immunecells_v2.Rmd
-    Untracked:  EMBs_GREM2_expression_immunecells_v2_files/
-    Untracked:  GO inflmph BP
-    Untracked:  Library/
-    Untracked:  MAIT_CD8_vs_CD3_immunosuppression.pdf
-    Untracked:  Movies/
-    Untracked:  Music/
-    Untracked:  NCR paper Tschöpe Lymphocytes genes.Rmd
-    Untracked:  NK_Subgroups_Facet.pdf
-    Untracked:  NK_Subgroups_Kruskal.pdf
-    Untracked:  NK_Subgroups_immunosuppression stringent.pdf
-    Untracked:  NKphenotype_boxplot_with_kruskal_pvalues.pdf
-    Untracked:  NKphenotype_boxplot_with_points_kruskal.pdf
-    Untracked:  NKphenotype_boxplot_with_pvalues.pdf
-    Untracked:  NKphenotype_immunosuppression non stringent.pdf
-    Untracked:  NKphenotype_piecharts_by_condition.pdf
-    Untracked:  NKphenotype_piecharts_by_condition_clean.pdf
-    Untracked:  NKphenotype_piecharts_by_condition_cleanv2.pdf
-    Untracked:  NKphenotype_piecharts_by_condition_enhanced.pdf
-    Untracked:  NKphenotype_piecharts_outside_labels.pdf
-    Untracked:  NKphenotype_stackedbar_by_condition.pdf
-    Untracked:  NKphenotypes.pdf
-    Untracked:  PBMCs_GREM2_expression.Rmd
-    Untracked:  PCA all panels.Rmd
-    Untracked:  Pictures/
-    Untracked:  Public/
-    Untracked:  R/
-    Untracked:  Sites/
-    Untracked:  UCT panel.Rmd
-    Untracked:  UCT_CellCounts_BatchEffect_AMvsHealthy.pdf
-    Untracked:  UCT_CellCounts_BatchEffect_Condition_and_point.pdf
-    Untracked:  UCT_CellCounts_BatchEffect_FilledPoints.pdf
-    Untracked:  UCT_CellCounts_FilledPoints_PerBatch.pdf
-    Untracked:  UCT_CellCounts_IndividualPlots.pdf
-    Untracked:  UCT_CellCounts_IndividualPlots_Immunosuppression.pdf
-    Untracked:  UCT_CellCounts_IndividualPlots_Immunosuppression_non-stringent.pdf
-    Untracked:  UCT_CellCounts_IndividualPlots_celltypes.pdf
-    Untracked:  UCT_Cellcount_Prism_SortedByBatch.xlsx
-    Untracked:  UCT_allfactors_for prism Healthy vs. AM.xlsx
-    Untracked:  UCT_allfactors_for prism.xlsx
-    Untracked:  early NK markers_immunosuppression stringent.pdf
-    Untracked:  early_NK_markers_immunosuppression_stringent.pdf
-    Untracked:  mature_NK_markers_immunosuppression_stringent.pdf
-    Untracked:  r-reticulate/
-    Untracked:  terminal_NK_markers_immunosuppression_stringent.pdf
-    Untracked:  virtualenvs/
-    Untracked:  ~$Clinical data Patients with effusion by severity.xlsx
-    Untracked:  ~$Clinical data Patients with effusion.xlsx
-    Untracked:  ~$Clinical data Patients without effusion.xlsx
-    Untracked:  ~$E Fall Ashley Ärzteblatt etc..docxx
-    Untracked:  ~$Study patients with positive clinical presentation of pericarditis.xlsx
-    Untracked:  ~$mulatur März 2018 Uniklinik Mainz Hämatologie Onkologie .docxcx
-    Untracked:  ~$ndigung Mobilcom debitel 2018.docxx
-    Untracked:  ~$rtrans_Donor_BLcharacteristics.docx
-    Untracked:  ~$seline.characteristics_pericardial involvement.docx
-    Untracked:  ~$thologie Kurs Pate Überblick.docxx
-    Untracked:  ~$werbung für eine Famulatur Frühjahr 2018 .docxcx
-
-Unstaged changes:
-    Modified:   Documents/GitHub/Myocarditis EMB Project v3/.gitignore
-    Modified:   Documents/GitHub/Myocarditis EMB Project v3/analysis/index.Rmd
+    Untracked:  .Rproj.user/
 
 </code></pre>
 <p>
@@ -590,10 +402,8 @@ have uncommitted changes.
 <div id="versions" class="tab-pane fade">
 <p>
 These are the previous versions of the repository in which changes were
-made to the R Markdown (<code>Documents/GitHub/Myocarditis EMB Project
-v3/analysis/index.Rmd</code>) and HTML
-(<code>Documents/GitHub/Myocarditis EMB Project
-v3/docs/index.html</code>) files. If you’ve configured a remote Git
+made to the R Markdown (<code>analysis/index.Rmd</code>) and HTML
+(<code>docs/index.html</code>) files. If you’ve configured a remote Git
 repository (see <code>?wflow_git_remote</code>), click on the hyperlinks
 in the table below to view the files as they were in that past version.
 </p>
@@ -624,16 +434,33 @@ Message
 Rmd
 </td>
 <td>
-fe297f2
+<a href="https://github.com/Epayne-hub/Myocarditis_v3/blob/18dc62fa5376e20f29112ed7fc08edd208555525/analysis/index.Rmd" target="_blank">18dc62f</a>
 </td>
 <td>
 Epayne-hub
 </td>
 <td>
-2026-02-22
+2026-03-11
 </td>
 <td>
-Start workflowr project.
+initial setup
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/Epayne-hub/Myocarditis_v3/18dc62fa5376e20f29112ed7fc08edd208555525/docs/index.html" target="_blank">18dc62f</a>
+</td>
+<td>
+Epayne-hub
+</td>
+<td>
+2026-03-11
+</td>
+<td>
+initial setup
 </td>
 </tr>
 </tbody>
