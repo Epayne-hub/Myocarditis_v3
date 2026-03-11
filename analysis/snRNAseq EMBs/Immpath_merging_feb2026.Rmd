@@ -1,0 +1,3164 @@
+
+---
+title: "Myocarditis snRNAseq QC and Merging"
+date: "2025-11-28"
+author: "Emily Payne"
+output: html_document
+---
+
+```{r setup, include = FALSE, fig.path = "custom/path", warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+
+
+
+```
+
+
+```{r}
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_20.02.26_filt.rds")
+
+
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_20.02.26_filt_annotated.rds")
+
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_22.02.26_filt_annotated.rds")
+
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_SC_transformed_doublet_removal_annotated_full_metadata_09_3_26")
+
+table(seuratM$orig.ident)
+table(seuratM$clusterName)
+
+
+```
+
+
+
+```{r, echo = FALSE}
+
+### load files AM and merge
+basedir <- "~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Cellranger8/Acute"
+fileNamList <- list.files(path = basedir)
+
+
+for(i in 1:length(fileNamList)){
+  seuratS <- readRDS(paste0(basedir,"/", fileNamList[i]))
+  seuratS@assays$RNA@layers$scale.data <- NULL ## remove scale data slot to reduce size
+  if(exists("seuratM")){
+    seuratM <- merge(x = seuratM, y = seuratS)
+    cat("Merged", i, "of", length(fileNamList), "files - Totalcells:", ncol(seuratM), "\n")
+  }else{
+    seuratM <- seuratS
+    cat("Initialized with first Seurat object:")
+  }
+}
+
+##
+#
+remove(seuratS)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+
+### load files Berlin and merge
+basedir <- "~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Cellranger8/Berlin"
+fileNamList <- list.files(path = basedir)
+
+for(i in 1:length(fileNamList)){
+  seuratS <- readRDS(paste0(basedir,"/", fileNamList[i]))
+  seuratS@assays$RNA@layers$scale.data <- NULL ## remove scale data slot to reduce size
+  if(exists("seuratM")){
+    seuratM <- merge(x = seuratM, y = seuratS)
+    cat("Merged", i, "of", length(fileNamList), "files - Totalcells:", ncol(seuratM), "\n")
+  }else{
+    seuratM <- seuratS
+    cat("Initializedwith first Seurat object:")
+  }
+}
+
+##
+#
+remove(seuratS)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+
+
+### load files from healthy donors and merge
+
+basedir <- "~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Cellranger8/Healthy"
+fileNamList <- list.files(path = basedir)
+
+for(i in 1:length(fileNamList)){
+  seuratS <- readRDS(paste0(basedir,"/", fileNamList[i]))
+  seuratS@assays$RNA@layers$scale.data <- NULL ## remove scale data slot to reduce size
+  if(exists("seuratM")){
+    seuratM <- merge(x = seuratM, y = seuratS)
+    cat("Merged", i, "of", length(fileNamList), "files - Totalcells:", ncol(seuratM), "\n")
+  }else{
+    seuratM <- seuratS
+    cat("Initializedwith first Seurat object:")
+  }
+}
+
+##
+#
+remove(seuratS)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+## load files from Sarcoidosis patients and merge
+basedir <- "~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Cellranger8/Nov2025"
+fileNamList <- list.files(path = basedir)
+
+for(i in 1:length(fileNamList)){
+  seuratS <- readRDS(paste0(basedir,"/", fileNamList[i]))
+  seuratS@assays$RNA@layers$scale.data <- NULL ## remove scale data slot to reduce size
+  if(exists("seuratM")){
+    seuratM <- merge(x = seuratM, y = seuratS)
+    cat("Merged", i, "of", length(fileNamList), "files - Totalcells:", ncol(seuratM), "\n")
+  }else{
+    seuratM <- seuratS
+    cat("Initializedwith first Seurat object:")
+  }
+}
+
+
+
+
+
+## total cell count 
+##
+#
+remove(seuratS)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+
+
+## 86472 
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+seuratM <- JoinLayers(seuratM)
+
+
+```
+
+```{r}
+saveRDS(seuratM, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_raw_20.02.26.rds")
+```
+
+
+
+
+
+
+
+
+```{r}
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_28112025.rds")
+
+#table(seuratM$orig.ident)
+
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_29.11.25_filteredv2.rds")
+
+
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_29.11.25_v3.rds")
+
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_raw_30.11.25.rds")
+#table(seuratM$orig.ident)
+
+seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_raw_20.02.26.rds")
+
+```
+
+
+
+```{r}
+table(seuratM$sample)
+```
+
+
+```{r}
+
+
+
+#### Load all seurat files. Name patient_ID and allocate to condition
+## Name samples sequentially
+
+### Healthy heart
+#HH_8 <- c("o294781_08-8_20220912_Hu_nucseq_Graz_17_EMB_GEM") 
+
+
+HH_1 <- c("o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM")
+HH_2 <-  c("o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM")
+HH_3 <-  c("o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM")
+HH_4 <-  c("o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM")
+HH_5 <- c("o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM")
+HH_6 <- c("o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM")
+HH_7 <-  c("o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM")
+HH_8 <- c("o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM")
+HH_9 <-  c("o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM")
+HH_10 <-  c("o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM", "o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM")
+
+## AM
+Immpath_AM2 <- c("o292731_3-3_20220818_Hu_nucseq_SG_33_EMB_GEM")
+Immpath_AM10 <- c("312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM")
+Immpath_AM12 <- c("312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM")
+#Immpath_AM14 <- c("312581_07-7_20230308_Hu_nucseq_SG38_EMB_GEM")### bad QC
+Immpath_AM18 <- c("353921_28-28_20240529_Hu_nucseq_Immpath_EMB18")
+Immpath_AM27 <- c("353921_31-31_20240529_Hu_nucseq_Immpath_EMB27")
+Immpath_AM29 <- c("353921_32-32_20240529_Hu_nucseq_Immpath_EMB29")
+Immpath_AM35 <- c("353921_34-34_20240529_Hu_nucseq_Immpath_EMB35")
+Immpath_AM37 <- c("353921_35-35_20240529_Hu_nucseq_Immpath_EMB37")
+Immpath_AM47 <- c("359861_16-8_20240730_Hu_nucseq_Immpath_EMB47")
+Immpath_AM48 <- c("359861_17-9_20240730_Hu_nucseq_Immpath_EMB48")
+Immpath_AM39 <- c("347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0")# "348751_1-6_20240326_Hu_nucseq_Immpath_AM39_0_rep") ##  39 add
+Immpath_AM54 <- c("377461_5-5_20250212_Hu_nucseq_USZ_Immpath_AM54")
+Immpath_AM59 <- c("377461_6-6_20250212_Hu_nucseq_USZ_Immpath_AM59")
+Immpath_AM61 <- c("377461_7-7_20250212_Hu_nucseq_USZ_Immpath_AM61")
+Immpath_AM63 <- c("377461_8-8_20250212_Hu_nucseq_USZ_Immpath_AM63")
+Immpath_AM77 <- c("401231_07-7_20251014_Hu_nucseq_USZ_Immpath_AM77")
+Immpath_AM84 <- c("403291_5-5_20251104_Hu_nucseq_USZ_Immpath_AM84")
+Immpath_AM85 <- c("403291_6-6_20251104_Hu_nucseq_USZ_Immpath_AM85")
+Immpath_AM86 <- c("403291_7-7_20251104_Hu_nucseq_USZ_Immpath_AM86")
+Immpath_AM98 <- c("409901_11-11_20260128_Hu_nucseq_USZ_Immpath_AM98")
+
+pat_NCRGraz1 <- c("o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM")
+pat_NCRGraz2 <- c("o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM")
+pat_NCRGraz15 <- c("o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM")
+#pat_NCR29 <- c("o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM") ### bad QC
+pat_NCR30 <- c("o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM")
+pat_NCR31 <- c("o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM")
+
+pat_BLn979 <- c("359861_09-11_20240723_Hu_nucseq_Ber_Pat5_EM979_1","359861_10-13_20240723_Hu_nucseq_Ber_Pat5_EM979_2")
+pat_BLn1537 <- c("359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537")
+pat_BLn1041 <- c("359861_12-2_20240730_Hu_nucseq_Ber_Pat2_EMB1041")
+pat_BLn1235 <- c("359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235")
+pat_BLn1383<- c("359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383")
+pat_BLn694 <- c("359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694")
+
+## CM 
+Immpath_24 <- c("353921_29-29_20240529_Hu_nucseq_Immpath_EMB24")
+Immpath_25 <- c("353921_30-30_20240529_Hu_nucseq_Immpath_EMB25")
+Immpath_30 <- c("353921_33-33_20240529_Hu_nucseq_Immpath_EMB30")
+pat_NCR32 <- c ("o28576_1_13-13_20220525_Hu_nucseq_EMB32_GEM")
+pat_NCR34 <- c("o292731_4-4_20220818_Hu_nucseq_SG_34_EMB_GEM")
+CM_Graz7 <- c("o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM")
+CM_Graz14 <- c("o294781_05-5_20220912_Hu_nucseq_Graz_14_EMB_GEM")
+CM_Graz18 <- c("o294781_09-9_20220912_Hu_nucseq_Graz_18_EMB_GEM")
+CM_Graz3 <- c("o28576_1_03-3_20220525_Hu_nucseq_Graz_3_EMB_GEM")
+CM_Graz4 <- c("o28576_1_04-4_20220525_Hu_nucseq_Graz_4_EMB_GEM")
+CM_Graz5 <- c("o28576_1_05-5_20220525_Hu_nucseq_Graz_5_EMB_GEM")
+CM_Graz6 <- c("o28576_1_06-6_20220525_Hu_nucseq_Graz_6_EMB_GEM")
+CM_Graz19 <- c("o294781_10-10_20220912_Hu_nucseq_Graz_19_EMB_GEM")
+Immpath_CM08 <- c("372561_06-6_20241204_Hu_nucseq_Immpath_EMB03")
+Immpath_CM09 <- c("372561_07-7_20241204_Hu_nucseq_Immpath_EMB09")
+
+##Sarcoidosis
+Immpath_CM11 <- c("377461_3-3_20250212_Hu_nucseq_USZ_Immpath_CM11")
+Immpath_CM12 <- c("377461_4-4_20250212_Hu_nucseq_USZ_Immpath_CM12")
+Cartrans_explant27 <- c("377461_1-1_20250212_Hu_nucseq_USZ_HTx027_expLV")
+Sarco_SG35 <- c("o292731_5-5_20220818_Hu_nucseq_SG_35_EMB_GEM")
+Sarco_Graz20 <- c("o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM")
+
+table(seuratM$orig.ident)
+### changes compared to before: 
+# NCR32 = Immpath-CM-01 and NCR 34 = Immpath-CM-02
+# NCR30 = HeartRNAseq30 (SG 30)
+# NCR31 = HeartRNAseq31 (SG 31)
+# Immpath-02 = SG 36, Immpath-10 = SG37
+##labels of pat_NCR are one next higher up
+# pat_NCR29 <- c("o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM")
+# pat_NCR30 <- c("o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM")
+# pat_NCR31 <- c("o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM")
+# Immpath_30 <- c("353921_33-33_20240529_Hu_nucseq_Immpath_EMB30") different seurat
+
+```
+
+
+```{r}
+## Name samples sequentially
+seuratM$patient <- "pat_nr"
+
+
+##Healthy
+seuratM$patient[which(seuratM$dataset %in% HH_1)] <- "Donor Heart 01"
+seuratM$patient[which(seuratM$dataset %in% HH_4)] <- "Donor Heart 02"
+seuratM$patient[which(seuratM$dataset %in% HH_5)] <- "Donor Heart 03"
+seuratM$patient[which(seuratM$dataset %in% HH_6)] <- "Donor Heart 04"
+seuratM$patient[which(seuratM$dataset %in% HH_7)] <- "Donor Heart 05"
+seuratM$patient[which(seuratM$dataset %in% HH_8)] <- "Donor Heart 06"
+seuratM$patient[which(seuratM$dataset %in% HH_9)] <- "Donor Heart 07"
+seuratM$patient[which(seuratM$dataset %in% HH_10)] <-"Donor Heart 08"
+#seuratM$patient[which(seuratM$dataset %in% HH_11)] <-"Donor Heart 09"
+seuratM$patient[which(seuratM$dataset %in% HH_2)] <- "Donor Heart 09"
+seuratM$patient[which(seuratM$dataset %in% HH_3)] <- "Donor Heart 10"
+
+
+## Acute Myocarditis
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM2)] <- "AM 01"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM10)] <- "AM 02"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM12)] <- "AM 03"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM18)] <- "AM 04"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM27)] <- "AM 05"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM29)] <- "AM 06"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM35)] <- "AM 07"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM37)] <- "AM 08"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM47)] <- "AM 09"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM48)] <- "AM 10"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM54)] <- "AM 19"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM59)] <- "AM 20"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM61)] <- "AM 21"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM63)] <- "AM 22"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM77)] <- "AM 23"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM84)] <- "AM 24"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM85)] <- "AM 24"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM86)] <- "AM 25"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM98)] <- "AM 30"
+
+
+seuratM$patient[which(seuratM$dataset %in% pat_NCR30)] <- "AM 11"
+seuratM$patient[which(seuratM$dataset %in% pat_NCR31)] <- "AM 12"
+seuratM$patient[which(seuratM$dataset %in% pat_NCRGraz1)] <- "AM 13"
+seuratM$patient[which(seuratM$dataset %in% pat_NCRGraz2)] <- "AM 14"
+seuratM$patient[which(seuratM$dataset %in% pat_NCRGraz15)] <- "AM 15"
+
+seuratM$patient[which(seuratM$dataset %in% pat_BLn979)] <- "AM 16"
+seuratM$patient[which(seuratM$dataset %in% pat_BLn1537)] <- "AM 17"
+seuratM$patient[which(seuratM$dataset %in% pat_BLn1041)] <- "AM 18"
+seuratM$patient[which(seuratM$dataset %in% pat_BLn1235)] <- "AM 26"
+seuratM$patient[which(seuratM$dataset %in% pat_BLn1383)] <- "AM 27"
+seuratM$patient[which(seuratM$dataset %in% pat_BLn694)] <- "AM 28"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM39)] <- "AM 29"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM14)] <- "AM 27"
+#seuratM$patient[which(seuratM$dataset %in% pat_NCR29)] <- "AM 28"
+
+
+## Cardiomyopathy
+seuratM$patient[which(seuratM$dataset %in% Immpath_24)] <- "CM 01"
+seuratM$patient[which(seuratM$dataset %in% Immpath_25)] <- "CM 02"
+seuratM$patient[which(seuratM$dataset %in% Immpath_30)] <- "CM 03"
+seuratM$patient[which(seuratM$dataset %in% Immpath_CM08)] <- "CM 04"
+seuratM$patient[which(seuratM$dataset %in% Immpath_CM09)] <- "CM 05"
+seuratM$patient[which(seuratM$dataset %in% pat_NCR32)] <- "CM 06"
+seuratM$patient[which(seuratM$dataset %in% pat_NCR34)] <- "CM 07"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz3)] <- "CM 08"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz4)] <- "CM 09"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz5)] <- "CM 10"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz6)] <- "CM 11"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz7)] <- "CM 12"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz14)] <- "CM 13"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz18)] <- "CM 14"
+seuratM$patient[which(seuratM$dataset %in% CM_Graz19)] <- "CM 15"
+
+
+## Sarcoidosis
+seuratM$patient[which(seuratM$dataset %in% Sarco_SG35)] <- "Sarcoidosis 01"
+seuratM$patient[which(seuratM$dataset %in% Sarco_Graz20)] <- "Sarcoidosis 02"
+seuratM$patient[which(seuratM$dataset %in% Immpath_CM11)] <- "Sarcoidosis 03"
+seuratM$patient[which(seuratM$dataset %in% Immpath_CM12)] <- "Sarcoidosis 04"
+seuratM$patient[which(seuratM$dataset %in% Cartrans_explant27)] <- "Sarcoidosis 05"
+
+## Cellranger 8.0
+table(seuratM$patient)
+table(seuratM$orig.ident)
+
+```
+
+
+
+
+AM 01          AM 02          AM 03          AM 04          AM 05          AM 06 
+          6286           4323           1123            208            579            335 
+         AM 07          AM 08          AM 09          AM 10          AM 11          AM 12 
+          1217            604            513            426            236           1192 
+         AM 13          AM 14          AM 15          AM 16          AM 17          AM 18 
+          2740           1684           4439           2247            316            608 
+         AM 19          AM 20          AM 21          AM 22          AM 23          AM 24 
+           646            520            741            666           1203           1242 
+        CMP 01         CMP 02         CMP 03         CMP 04         CMP 05         CMP 06 
+           105            227            730           1428            620            653 
+        CMP 07         CMP 08         CMP 09         CMP 10         CMP 11         CMP 12 
+          1268           2280           2396            545            781            491 
+        CMP 13     Healthy 01     Healthy 02     Healthy 03     Healthy 04     Healthy 05 
+           111           3921           3818           4908           9882           1442 
+    Healthy 06     Healthy 07     Healthy 08     Healthy 09     Healthy 10     Healthy 11 
+          1998            841           1480           3707           3731           3991 
+Sarcoidosis 01 Sarcoidosis 02 
+          2363           2706 
+
+
+
+
+
+
+```{r}
+seuratM$sample <- "sample"
+seuratM$sample[which(seuratM$dataset %in% HH_1)] <- "Donor Heart 01"
+seuratM$sample[which(seuratM$dataset %in% HH_4)] <- "Donor Heart 02"
+seuratM$sample[which(seuratM$dataset %in% HH_5)] <- "Donor Heart 03"
+seuratM$sample[which(seuratM$dataset %in% HH_6)] <- "Donor Heart 04"
+seuratM$sample[which(seuratM$dataset %in% HH_7)] <- "Donor Heart 05"
+seuratM$sample[which(seuratM$dataset %in% HH_8)] <- "Donor Heart 06"
+seuratM$sample[which(seuratM$dataset %in% HH_9)] <- "Donor Heart 07"
+seuratM$sample[which(seuratM$dataset %in% HH_10)] <- "Donor Heart 08"
+#seuratM$sample[which(seuratM$dataset %in% HH_11)] <- "Donor Heart 09" 
+seuratM$sample[which(seuratM$dataset %in% HH_2)] <- "Donor Heart 09"
+seuratM$sample[which(seuratM$dataset %in% HH_3)] <- "Donor Heart 10"
+
+## Acute Myocarditis (AM Cohort)
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM2)] <- "ZH-Immpath-AM-02"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM10)] <- "ZH-Immpath-AM-10"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM12)] <- "ZH-Immpath-AM-12"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM18)] <- "ZH-Immpath-AM-18"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM27)] <- "ZH-Immpath-AM-27"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM29)] <- "ZH-Immpath-AM-29"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM35)] <- "ZH-Immpath-AM-35"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM37)] <- "ZH-Immpath-AM-37"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM39)] <- "ZH-Immpath-AM-39"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM47)] <- "ZH-Immpath-AM-47"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM48)] <- "ZH-Immpath-AM-48"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM54)] <- "ZH-Immpath-AM-54"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM59)] <- "ZH-Immpath-AM-59"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM61)] <- "ZH-Immpath-AM-61"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM63)] <- "ZH-Immpath-AM-63"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM77)] <- "ZH-Immpath-AM-77"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM84)] <- "ZH-Immpath-AM-84"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM85)] <- "ZH-Immpath-AM-85"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM86)] <- "ZH-Immpath-AM-86"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM98)] <- "ZH-Immpath-AM-98"
+
+seuratM$sample[which(seuratM$dataset %in% pat_NCR30)] <- "HeartRNAseq-AM-30"
+seuratM$sample[which(seuratM$dataset %in% pat_NCR31)] <- "HeartRNAseq-AM-31"
+seuratM$sample[which(seuratM$dataset %in% pat_NCRGraz1)] <- "Graz-AM-01"
+seuratM$sample[which(seuratM$dataset %in% pat_NCRGraz2)] <- "Graz-AM-02"
+seuratM$sample[which(seuratM$dataset %in% pat_NCRGraz15)] <- "Graz-AM-15"
+
+seuratM$sample[which(seuratM$dataset %in% pat_BLn979)] <- "Berlin-AM-979"
+seuratM$sample[which(seuratM$dataset %in% pat_BLn1537)] <- "Berlin-AM-1537"
+seuratM$sample[which(seuratM$dataset %in% pat_BLn1041)] <- "Berlin-AM-1041"
+seuratM$sample[which(seuratM$dataset %in% pat_BLn1235)] <- "Berlin-AM-1235"
+seuratM$sample[which(seuratM$dataset %in% pat_BLn1383)] <- "Berlin-AM-1383"
+seuratM$sample[which(seuratM$dataset %in% pat_BLn694)] <- "Berlin-AM-694"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM14)] <- "ZH-Immpath-AM-14"
+#seuratM$sample[which(seuratM$dataset %in% pat_NCR29)] <- "NCR-AM-29"
+```
+
+
+```{r}
+table(seuratM$sample)
+```
+
+
+```{r, include = F}
+## Cardiomyopathy (CM Cohort)
+seuratM$sample[which(seuratM$dataset %in% Immpath_24)] <- "ZH-Immpath-CM-24"
+seuratM$sample[which(seuratM$dataset %in% Immpath_25)] <- "ZH-Immpath-CM-25"
+seuratM$sample[which(seuratM$dataset %in% Immpath_30)] <- "ZH-Immpath-CM-30"
+seuratM$sample[which(seuratM$dataset %in% Immpath_CM08)] <- "ZH-Immpath-CM-08"
+seuratM$sample[which(seuratM$dataset %in% Immpath_CM09)] <- "ZH-Immpath-CM-09"
+seuratM$sample[which(seuratM$dataset %in% pat_NCR32)] <- "ZH-NCR-32"
+seuratM$sample[which(seuratM$dataset %in% pat_NCR34)] <- "ZH-NCR-34"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz7)] <- "Graz-CM-07"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz14)] <- "Graz-CM-14"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz18)] <- "Graz-CM-18"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz3)] <- "Graz-CM-03"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz4)] <- "Graz-CM-04"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz5)] <- "Graz-CM-05"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz6)] <- "Graz-CM-06"
+seuratM$sample[which(seuratM$dataset %in% CM_Graz19)] <- "Graz-CM-19"
+
+## Sarcoidosis
+seuratM$sample[which(seuratM$dataset %in% Sarco_SG35)] <- "ZH-Immpath-Sarco-AM-03"
+seuratM$sample[which(seuratM$dataset %in% Sarco_Graz20)] <- "Graz-Sarco-20"
+seuratM$sample[which(seuratM$dataset %in% Immpath_CM11)] <- "ZH-Immpath-Sarco-CM-11"
+seuratM$sample[which(seuratM$dataset %in% Immpath_CM12)] <- "ZH-Immpath-Sarco-CM-12"
+seuratM$sample[which(seuratM$dataset %in% Cartrans_explant27)] <- "Cartrans-explant-027"
+
+
+table(seuratM$sample)
+table(seuratM$orig.ident)
+
+```
+
+
+
+
+
+```{r Allocate to condition}
+## Allocate to condition
+DonorHeart <- c("o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM",
+             "o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM",
+             "o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM",
+             "o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM",
+             "o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM",
+             "o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM",
+             "o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM",
+             "o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM",
+             "o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM",
+             "o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM",
+             "o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM")
+
+AM <- c("312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM",
+        "312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM",
+        "353921_28-28_20240529_Hu_nucseq_Immpath_EMB18",
+        "353921_31-31_20240529_Hu_nucseq_Immpath_EMB27",
+        "353921_32-32_20240529_Hu_nucseq_Immpath_EMB29",
+        "353921_34-34_20240529_Hu_nucseq_Immpath_EMB35",
+        "353921_35-35_20240529_Hu_nucseq_Immpath_EMB37",
+        "347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0",
+        "359861_16-8_20240730_Hu_nucseq_Immpath_EMB47",
+        "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48",
+        "377461_5-5_20250212_Hu_nucseq_USZ_Immpath_AM54",
+        "377461_6-6_20250212_Hu_nucseq_USZ_Immpath_AM59",
+        "377461_7-7_20250212_Hu_nucseq_USZ_Immpath_AM61",
+        "377461_8-8_20250212_Hu_nucseq_USZ_Immpath_AM63",
+        "o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM",
+        "o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM",
+        "o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM",
+        "o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM",
+        "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+        "o292731_3-3_20220818_Hu_nucseq_SG_33_EMB_GEM",
+        "o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM",
+        "359861_09-11_20240723_Hu_nucseq_Ber_Pat5_EM979_1",
+        "359861_10-13_20240723_Hu_nucseq_Ber_Pat5_EM979_2",
+        "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+        "359861_12-2_20240730_Hu_nucseq_Ber_Pat2_EMB1041",
+        "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235",
+        "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383",
+        "359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694",
+        "377461_5-5_20250212_Hu_nucseq_USZ_Immpath_AM54",
+        "377461_6-6_20250212_Hu_nucseq_USZ_Immpath_AM59",
+        "377461_7-7_20250212_Hu_nucseq_USZ_Immpath_AM61",
+        "377461_8-8_20250212_Hu_nucseq_USZ_Immpath_AM63",
+        "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+        "401231_07-7_20251014_Hu_nucseq_USZ_Immpath_AM77",
+        "403291_5-5_20251104_Hu_nucseq_USZ_Immpath_AM84",
+        "403291_6-6_20251104_Hu_nucseq_USZ_Immpath_AM85",
+        "403291_7-7_20251104_Hu_nucseq_USZ_Immpath_AM86",
+        "409901_11-11_20260128_Hu_nucseq_USZ_Immpath_AM98")
+```
+
+
+```{r include = F}
+CM <- c("353921_29-29_20240529_Hu_nucseq_Immpath_EMB24",
+        "353921_30-30_20240529_Hu_nucseq_Immpath_EMB25",
+        "353921_33-33_20240529_Hu_nucseq_Immpath_EMB30",
+        "372561_06-6_20241204_Hu_nucseq_Immpath_EMB03",
+        "372561_07-7_20241204_Hu_nucseq_Immpath_EMB09",
+        #"o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+        "o28576_1_03-3_20220525_Hu_nucseq_Graz_3_EMB_GEM",
+        "o28576_1_04-4_20220525_Hu_nucseq_Graz_4_EMB_GEM",
+        "o28576_1_05-5_20220525_Hu_nucseq_Graz_5_EMB_GEM",
+        "o28576_1_06-6_20220525_Hu_nucseq_Graz_6_EMB_GEM",
+        "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM",
+        "o28576_1_13-13_20220525_Hu_nucseq_EMB32_GEM",
+        "o292731_4-4_20220818_Hu_nucseq_SG_34_EMB_GEM",
+        "o294781_05-5_20220912_Hu_nucseq_Graz_14_EMB_GEM",
+        "o294781_09-9_20220912_Hu_nucseq_Graz_18_EMB_GEM",
+        "o294781_10-10_20220912_Hu_nucseq_Graz_19_EMB_GEM",
+        "372561_06-6_20241204_Hu_nucseq_Immpath_EMB03",
+        "372561_07-7_20241204_Hu_nucseq_Immpath_EMB09")
+        
+
+Sarcoidosis <- c("377461_1-1_20250212_Hu_nucseq_USZ_HTx027_expLV",
+                 "377461_3-3_20250212_Hu_nucseq_USZ_Immpath_CM11",
+                 "377461_4-4_20250212_Hu_nucseq_USZ_Immpath_CM12",
+                 "o292731_5-5_20220818_Hu_nucseq_SG_35_EMB_GEM",
+                 "o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM")
+
+## Subgroup MCeos, Immpath_39 (bad Quality); Immpath_47, Berlin 1041
+## Subgroup Giant cell: Immpath_29, 1537_BLn"
+```
+
+
+```{r, echo = F}
+
+seuratM$pat_sub <- "pat_sub"
+seuratM$pat_sub[which(seuratM$dataset %in% DonorHeart)] <- "DonorHeart"
+seuratM$pat_sub[which(seuratM$dataset %in% AM)] <- "AM"
+#seuratM$pat_sub[which(seuratM$dataset %in% CM)] <- "CM"
+#seuratM$pat_sub[which(seuratM$dataset %in% Sarcoidosis)] <- "Sarcoidosis"
+
+diseaseCond <- c("DonorHeart", "AM")
+
+table(seuratM$pat_sub, seuratM$orig.ident)
+
+table(seuratM$orig.ident)
+
+table(seuratM$patient, seuratM$pat_sub)
+table(seuratM$sample, seuratM$pat_sub)
+
+table(seuratM$pat_sub)
+
+```
+
+
+```{r Allocate to sex}
+## Allocate to sex
+
+# in brackets insufficient quality, therefore not included
+# female: AM01, AM04, AM06, AM07, AM09, AM10, AM14, AM16, AM18 (AM19, AM22, AM24)
+# female: CMP02, CMP04, CMP13 
+# male: AM02, AM03, AM05, AM08, AM11, AM12, AM13, AM15, AM17, (AM20, AM21, AM23)
+# male CMP: CMP01, CMP03, CMP05,CMP06,CMP07,CMP08,CMP09,CMP10, CMP11, CMP12, Sarcoidosis 01, Sarcoidosis 02 
+
+female <- c("o292731_3-3_20220818_Hu_nucseq_SG_33_EMB_GEM", #AM
+            "353921_28-28_20240529_Hu_nucseq_Immpath_EMB18",
+            "353921_32-32_20240529_Hu_nucseq_Immpath_EMB29",
+            "353921_34-34_20240529_Hu_nucseq_Immpath_EMB35",
+             "347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0",
+            "359861_16-8_20240730_Hu_nucseq_Immpath_EMB47",
+            "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48",
+            "377461_6-6_20250212_Hu_nucseq_USZ_Immpath_AM59",
+            "377461_8-8_20250212_Hu_nucseq_USZ_Immpath_AM63",
+            "409901_11-11_20260128_Hu_nucseq_USZ_Immpath_AM98",
+            "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+            "359861_09-11_20240723_Hu_nucseq_Ber_Pat5_EM979_1","359861_10-13_20240723_Hu_nucseq_Ber_Pat5_EM979_2",
+            "359861_12-2_20240730_Hu_nucseq_Ber_Pat2_EMB1041", 
+            "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383", ## check
+            "353921_30-30_20240529_Hu_nucseq_Immpath_EMB25", #CMP
+            "o28576_1_13-13_20220525_Hu_nucseq_EMB32_GEM",
+            "372561_06-6_20241204_Hu_nucseq_Immpath_EMB03",
+            "372561_07-7_20241204_Hu_nucseq_Immpath_EMB09",
+            "o294781_10-10_20220912_Hu_nucseq_Graz_19_EMB_GEM",
+            "o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM", # Healthy
+            "o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM",
+            "o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM",
+            "377461_3-3_20250212_Hu_nucseq_USZ_Immpath_CM11") # Sarcoidosis)
+
+
+male <- c("312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM", #AM
+          "312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM",
+          "353921_31-31_20240529_Hu_nucseq_Immpath_EMB27",
+          "353921_35-35_20240529_Hu_nucseq_Immpath_EMB37",
+          "o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM",
+          "o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM",
+          "o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM",
+          "o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM",
+          "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+          "377461_5-5_20250212_Hu_nucseq_USZ_Immpath_AM54",
+          "377461_7-7_20250212_Hu_nucseq_USZ_Immpath_AM61",
+          "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235",
+          "359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694",
+          "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+          "401231_07-7_20251014_Hu_nucseq_USZ_Immpath_AM77",
+          "403291_5-5_20251104_Hu_nucseq_USZ_Immpath_AM84",
+          "403291_6-6_20251104_Hu_nucseq_USZ_Immpath_AM85",
+          "403291_7-7_20251104_Hu_nucseq_USZ_Immpath_AM86")
+
+seuratM$sex <- "sex"
+seuratM$sex[which(seuratM$dataset %in% female)] <- "female"
+seuratM$sex[which(seuratM$dataset %in% male)] <- "male"
+#seuratM$sex[which(seuratM$dataset %in% unknown)] <- "unknown"
+
+table(seuratM$sex)
+table(seuratM$sample, seuratM$sex)
+```
+
+
+```{r include = F}
+
+c("353921_29-29_20240529_Hu_nucseq_Immpath_EMB24", #CMP
+          "353921_33-33_20240529_Hu_nucseq_Immpath_EMB30",
+          "o292731_4-4_20220818_Hu_nucseq_SG_34_EMB_GEM",
+          "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM",
+          "o294781_05-5_20220912_Hu_nucseq_Graz_14_EMB_GEM",
+          "o294781_09-9_20220912_Hu_nucseq_Graz_18_EMB_GEM",
+          "o28576_1_03-3_20220525_Hu_nucseq_Graz_3_EMB_GEM",
+          "o28576_1_04-4_20220525_Hu_nucseq_Graz_4_EMB_GEM",
+          "o28576_1_05-5_20220525_Hu_nucseq_Graz_5_EMB_GEM",
+         "o28576_1_06-6_20220525_Hu_nucseq_Graz_6_EMB_GEM",
+         
+         "o292731_5-5_20220818_Hu_nucseq_SG_35_EMB_GEM", # Sarcoidosis
+         "o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM",
+         "377461_1-1_20250212_Hu_nucseq_USZ_HTx027_expLV",
+         "377461_4-4_20250212_Hu_nucseq_USZ_Immpath_CM12",
+         "o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM",
+         "o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM", # Healthy, carries male genes, but is actually female
+         "o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM",
+         "o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM",
+         "o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM",
+         "o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM",
+         "o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM",
+         "o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM",
+         "o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM")
+
+##check Graz 9 if same patient
+
+# All Healthies unknown sex
+#unknown <- c()
+
+seuratM$sex <- "sex"
+seuratM$sex[which(seuratM$dataset %in% female)] <- "female"
+seuratM$sex[which(seuratM$dataset %in% male)] <- "male"
+#seuratM$sex[which(seuratM$dataset %in% unknown)] <- "unknown"
+
+table(seuratM$sex)
+table(seuratM$sample, seuratM$sex)
+
+```
+
+
+```{r Type of Ventricle}
+
+# Allocate Ventricle
+RV <- c("o292731_3-3_20220818_Hu_nucseq_SG_33_EMB_GEM", #Immpath-AM-02
+        "353921_28-28_20240529_Hu_nucseq_Immpath_EMB18",
+        "353921_32-32_20240529_Hu_nucseq_Immpath_EMB29",
+        "353921_34-34_20240529_Hu_nucseq_Immpath_EMB35",
+        "359861_16-8_20240730_Hu_nucseq_Immpath_EMB47",
+        "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48",
+        "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+        "353921_30-30_20240529_Hu_nucseq_Immpath_EMB25", 
+        "o28576_1_13-13_20220525_Hu_nucseq_EMB32_GEM",
+        "o294781_10-10_20220912_Hu_nucseq_Graz_19_EMB_GEM",
+        "312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM",
+        "312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM",
+        "353921_31-31_20240529_Hu_nucseq_Immpath_EMB27",
+        "353921_35-35_20240529_Hu_nucseq_Immpath_EMB37",
+        "o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM",
+        "o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM",
+        "o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM",
+        "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+        "353921_29-29_20240529_Hu_nucseq_Immpath_EMB24", 
+        "353921_33-33_20240529_Hu_nucseq_Immpath_EMB30",
+        "o292731_4-4_20220818_Hu_nucseq_SG_34_EMB_GEM",
+        "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM",
+        "o294781_05-5_20220912_Hu_nucseq_Graz_14_EMB_GEM", 
+        "o294781_09-9_20220912_Hu_nucseq_Graz_18_EMB_GEM",
+        "o28576_1_03-3_20220525_Hu_nucseq_Graz_3_EMB_GEM",
+        "o28576_1_04-4_20220525_Hu_nucseq_Graz_4_EMB_GEM",
+        "o28576_1_05-5_20220525_Hu_nucseq_Graz_5_EMB_GEM",
+        "o292731_5-5_20220818_Hu_nucseq_SG_35_EMB_GEM",
+        "o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM", 
+        "o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM",
+        "o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM",
+        "o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM",
+        "o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM",
+        "o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM",
+        "o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM",
+        "o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM",
+        "401231_07-7_20251014_Hu_nucseq_USZ_Immpath_AM77", 
+        "403291_5-5_20251104_Hu_nucseq_USZ_Immpath_AM84",
+        "403291_6-6_20251104_Hu_nucseq_USZ_Immpath_AM85",
+        "403291_7-7_20251104_Hu_nucseq_USZ_Immpath_AM86",
+        "409901_11-11_20260128_Hu_nucseq_USZ_Immpath_AM98")
+        
+  
+LV <- c("359861_09-11_20240723_Hu_nucseq_Ber_Pat5_EM979_1", "359861_10-13_20240723_Hu_nucseq_Ber_Pat5_EM979_2",
+      "359861_12-2_20240730_Hu_nucseq_Ber_Pat2_EMB1041",
+      "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+      "o28576_1_06-6_20220525_Hu_nucseq_Graz_6_EMB_GEM",
+      "o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM",
+      "o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM")
+
+
+seuratM$ventricle <- "ventricle"
+seuratM$ventricle[which(seuratM$dataset %in% RV)] <- "RV"
+seuratM$ventricle[which(seuratM$dataset %in% LV)] <- "LV"
+table(seuratM$ventricle)
+
+
+```
+
+
+
+
+```{r T cell condition}
+
+## Allocate to T cell group and add this to metadata
+## with cutoffs high >10%, intermediate 5-10%, low 2-5%, very low <2% -> 
+# N patients: high N = 5, intermediate N = 4, low N = 12, very low N = 20 
+
+#View(dat_all2)
+
+# T Cell high (descending order): AM 01, AM 17, AM 16, AM 18, CMP 13
+
+TC_high <- c("o292731_3-3_20220818_Hu_nucseq_SG_33_EMB_GEM", #AM01 
+             "359861_09-11_20240723_Hu_nucseq_Ber_Pat5_EM979_1","359861_10-13_20240723_Hu_nucseq_Ber_Pat5_EM979_2",
+             "359861_12-2_20240730_Hu_nucseq_Ber_Pat2_EMB1041", # AM 18
+             "o294781_10-10_20220912_Hu_nucseq_Graz_19_EMB_GEM", # CMP 15
+             "353921_32-32_20240529_Hu_nucseq_Immpath_EMB29",
+            "o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM",
+            "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+             ) 
+
+# T Cell intermediate: AM 6, AM 13, AM 17, CM 04, CM 09, CM 11
+
+TC_int <- c("372561_06-6_20241204_Hu_nucseq_Immpath_EMB03",
+            "o28576_1_04-4_20220525_Hu_nucseq_Graz_4_EMB_GEM",
+            "o28576_1_06-6_20220525_Hu_nucseq_Graz_6_EMB_GEM",
+            "o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM", 
+            "377461_8-8_20250212_Hu_nucseq_USZ_Immpath_AM63",
+            "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235",
+            "353921_29-29_20240529_Hu_nucseq_Immpath_EMB24",
+            "353921_33-33_20240529_Hu_nucseq_Immpath_EMB30",
+            "o28576_1_13-13_20220525_Hu_nucseq_EMB32_GEM",
+            "o292731_4-4_20220818_Hu_nucseq_SG_34_EMB_GEM",
+            "o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM",
+            "377461_4-4_20250212_Hu_nucseq_USZ_Immpath_CM12")
+            
+
+TC_low <- c("o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM",# Healthy
+             "o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM",
+             "o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM",
+             "o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM",
+             "o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM",
+             "o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM",
+             "o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM",
+             "o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM",
+             "o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM",
+             "o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM",
+             "o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM",
+             "312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM", #AM
+             "312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM",
+             "353921_28-28_20240529_Hu_nucseq_Immpath_EMB18",
+             "353921_31-31_20240529_Hu_nucseq_Immpath_EMB27",
+             "353921_34-34_20240529_Hu_nucseq_Immpath_EMB35",
+             "353921_35-35_20240529_Hu_nucseq_Immpath_EMB37",
+             "347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0",
+             "359861_16-8_20240730_Hu_nucseq_Immpath_EMB47",
+             "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48",
+             "377461_5-5_20250212_Hu_nucseq_USZ_Immpath_AM54",
+             "377461_6-6_20250212_Hu_nucseq_USZ_Immpath_AM59",
+             "377461_7-7_20250212_Hu_nucseq_USZ_Immpath_AM61",
+             "359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694",
+             "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383",
+             "353921_29-29_20240529_Hu_nucseq_Immpath_EMB24", # CM
+              "353921_30-30_20240529_Hu_nucseq_Immpath_EMB25",
+             "372561_07-7_20241204_Hu_nucseq_Immpath_EMB09",
+             "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+             "o28576_1_03-3_20220525_Hu_nucseq_Graz_3_EMB_GEM",
+             "o28576_1_05-5_20220525_Hu_nucseq_Graz_5_EMB_GEM",
+             "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM",
+             "o294781_05-5_20220912_Hu_nucseq_Graz_14_EMB_GEM",
+             "o294781_09-9_20220912_Hu_nucseq_Graz_18_EMB_GEM",
+             "o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM",
+             "o292731_5-5_20220818_Hu_nucseq_SG_35_EMB_GEM", # Sarcoidosis
+             "377461_3-3_20250212_Hu_nucseq_USZ_Immpath_CM11",
+             "377461_1-1_20250212_Hu_nucseq_USZ_HTx027_expLV",
+             "o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM")
+
+
+seuratM$TC <- "TC"
+seuratM$TC[which(seuratM$dataset %in% TC_high)] <- "Tcell High"
+seuratM$TC[which(seuratM$dataset %in% TC_int)] <- "Tcell Intermediate"
+seuratM$TC[which(seuratM$dataset %in% TC_low)] <- "Tcell Low"
+
+table (seuratM$TC)
+table(seuratM$orig.ident)
+table(seuratM$sample, seuratM$TC)
+table(seuratM$patient, seuratM$TC)
+
+Idents(seuratM) <- seuratM$clusterName
+table (seuratM$clusterName, seuratM$TC)
+
+table (seuratM$clusterName, seuratM$TC)
+
+table(seuratM$patient, seuratM$pat_sub)
+
+
+```
+
+
+
+
+```{r}
+
+MCS <- c("353921_32-32_20240529_Hu_nucseq_Immpath_EMB29",
+          "353921_34-34_20240529_Hu_nucseq_Immpath_EMB35",
+          "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48",
+          "377461_5-5_20250212_Hu_nucseq_USZ_Immpath_AM54",
+          "377461_6-6_20250212_Hu_nucseq_USZ_Immpath_AM59",
+          "377461_7-7_20250212_Hu_nucseq_USZ_Immpath_AM61",
+          "377461_8-8_20250212_Hu_nucseq_USZ_Immpath_AM63",
+         "359861_09-11_20240723_Hu_nucseq_Ber_Pat5_EM979_1","359861_10-13_20240723_Hu_nucseq_Ber_Pat5_EM979_2", "359861_11-1_20240730_Hu_nucseq_Ber_Pat1_EMB1537",
+             "359861_12-2_20240730_Hu_nucseq_Ber_Pat2_EMB1041",
+             "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235")
+
+Inotropics <- c("o292731_3-3_20220818_Hu_nucseq_SG_33_EMB_GEM",
+                "312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM",
+                "353921_35-35_20240529_Hu_nucseq_Immpath_EMB37",
+                "409901_11-11_20260128_Hu_nucseq_USZ_Immpath_AM98")## double check
+
+None <- c("312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM",
+          "353921_28-28_20240529_Hu_nucseq_Immpath_EMB18",
+          "353921_31-31_20240529_Hu_nucseq_Immpath_EMB27", 
+          "359861_16-8_20240730_Hu_nucseq_Immpath_EMB47",
+          "o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM",
+          "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383",
+          "359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694")
+
+Healthy <- c("o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM",
+             "o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM",
+             "o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM",
+             "o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM",
+             "o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM",
+             "o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM",
+             "o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM",
+             "o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM",
+             "o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM",
+             "o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM",
+             "o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM")
+
+Unknown <- c("o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM",
+             "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM",
+             "o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM",
+             "o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM")
+
+seuratM$severity <- "severity"
+seuratM$severity[which(seuratM$dataset %in% MCS)] <- "Critical"
+seuratM$severity[which(seuratM$dataset %in% Inotropics)] <- "Severe"
+seuratM$severity[which(seuratM$dataset %in% None)] <- "Mild"
+seuratM$severity[which(seuratM$dataset %in% Healthy)] <- "Healthy"
+seuratM$severity[which(seuratM$dataset %in% Unknown)] <- "Unknown"
+
+
+table (seuratM$severity)
+table(seuratM$orig.ident)
+table(seuratM$sample, seuratM$severity)
+table(seuratM$patient, seuratM$severity)
+
+## CM and sarco not included
+
+```
+
+
+
+
+
+```{r Perform QC}
+##total is the sum of all counts while, detected means the number of different genes found
+
+library(ggrepel)
+library(dplyr)
+library(geomtextpath)
+
+meta.data <- seuratM@meta.data
+
+#View(meta.data)
+
+
+
+# Density plot total counts, compare means and median
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = patient, fill = patient)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 300) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(patient) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 1000),  
+    aes(x = total_median, y = 0, label = patient),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right"  
+  ) +
+  labs(title = "Density Plot of Total Counts by Patient")
+
+# Density plot for detected counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = patient, fill = patient)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(patient) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 1000),  
+    aes(x = detected_median, y = 0, label = patient),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black"  
+  ) +
+  labs(title = "Density Plot of Detected Counts by Patient")
+
+list(ptotalpat, pdetectedpat)
+
+View(meta.data)
+```
+
+
+```{r Perform QC}
+
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = sample, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(sample) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 500),  
+    aes(x = total_median, y = 0, label = sample),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right"  
+  ) +
+  labs(title = "Density Plot of Total Counts by Patient")
+
+ptotalpat
+
+# Density plot for detected counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = sample, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(sample) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 500),  
+    aes(x = detected_median, y = 0, label = sample),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black"  
+  ) +
+  labs(title = "Density Plot of Detected Counts by Patient")
+
+list(ptotalpat, pdetectedpat)
+
+
+```
+
+
+
+seuratM_filt <- subset(seuratM, dataset %in% c("347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0",
+                                          "o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM",
+                                          "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235",
+                                          "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383",
+                                          "359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694",
+                                          "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM",
+                                          "401231_07-7_20251014_Hu_nucseq_USZ_Immpath_AM77"), # 
+                                          invert = TRUE)
+
+## Filtering and removal of samples after QC
+
+```{r}
+
+## Filtering and removal of samples after QC
+### old cellranger
+                                          
+#### remove Graz 9, 10, 11
+
+
+### remove 8 Samples from 7 patients due to batch effects and poor quality
+## remove "HH_11" <- c("o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM")
+## remove Immpath_AM_39 (= "AM 24", "347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0", "348751_1-6_20240326_Hu_nucseq_Immpath_AM39_0_rep")
+## remove Immpath_14 = "312581_07-7_20230308_Hu_nucseq_SG38_EMB_GEM" = SG38
+## remove "pat_NCR29", "o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM"
+## remove "BLn_AM1235"; "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235"
+## remove "BLn_AM1383", "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383"
+## remove "BLn_AM694","359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694"
+## remove Graz 10 and 11, formally labelled as HH2 and HH3, now relabbeld as HH09 and HH10 
+## ("o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM"), ("o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM")
+
+
+# second run quality control not passed for ZH-Immpath-AM-14 and NCR-AM-29
+
+## old cellranger v5
+#seuratM_filt <- subset(seuratM, dataset %in% c("o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM",
+                                          #"347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0",
+                                          #"312581_07-7_20230308_Hu_nucseq_SG38_EMB_GEM", 
+                                          #"o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM",
+                                          #"359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235",
+                                          #"359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383",
+                                          #"359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694",
+                                          #"o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM",
+                                          #"o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM"), #invert = TRUE)
+
+# new cellranger
+
+seuratM_filt <- subset(seuratM, dataset %in% c("347741_6-6_20240326_Hu_nucseq_Immpath_AM39_0",
+                                          "o27533_1_11-11_20220203_Hu_nucseq_EMB30_GEM",
+                                          "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48",
+                                          "359861_13-5_20240730_Hu_nucseq_Ber_Pat6_EMB1235",
+                                          "359861_14-6_20240730_Hu_nucseq_Ber_Pat7_EMB1383",
+                                          "359861_15-7_20240730_Hu_nucseq_Ber_Pat8_EMB694",
+                                          "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM"), # 
+                                          invert = TRUE)
+
+
+
+seuratM <- seuratM_filt
+remove(seuratM_filt)
+table(seuratM$orig.ident)
+
+                         
+unique(seuratM$dataset)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+table(seuratM$sample)
+
+### 84786 
+
+```
+
+## Cellcount per sample_ID after QC
+```{r}
+## QC after samples were removed; total is the sum of all counts while, detected means the number of different genes found
+
+meta.data <- seuratM@meta.data
+
+# Density plot for 'total' counts, compare means and median
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = patient, fill = patient)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 100) +  # (+ vertical line intercept)
+  geom_text_repel(
+    data = meta.data %>% group_by(patient) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 300),  
+    aes(x = total_median, y = 0, label = patient),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right"   
+  ) +
+  labs(title = "Density Plot of Total Counts by Patient")
+
+# Density plot for 'detected' counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = patient, fill = patient)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 100) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(patient) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 300), 
+    aes(x = detected_median, y = 0, label = patient),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black"  
+  ) +
+  labs(title = "Density Plot of Detected Counts by Patient")
+
+# Return the plots as a list
+list(ptotalpat, pdetectedpat)
+
+
+cell_count <- data.frame(table(seuratM$sample))
+colnames(cell_count) <- c("Sample", "Freq")
+hsize <- 1.5
+
+
+
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = sample, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 1000) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(sample) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 500),  
+    aes(x = total_median, y = 0, label = sample),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right"  
+  ) +
+  labs(title = "Density Plot of Total Counts by Patient")
+
+ptotalpat
+
+# Density plot for detected counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = sample, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 1000) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(sample) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 500),  
+    aes(x = detected_median, y = 0, label = sample),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black"  
+  ) +
+  labs(title = "Density Plot of Detected Counts by Patient")
+
+list(ptotalpat, pdetectedpat)
+
+
+
+```
+
+
+```{r}
+ggplot(cell_count, aes(x = hsize, y = Freq, fill = Sample)) +
+  #scale_fill_manual(values = colpat2) +
+  geom_col(color = "white") +
+  coord_polar(theta = "y") +
+  xlim(c(0.2, hsize + 0.5)) +
+  theme_void() +
+  ggtitle("cell number") +
+  theme(plot.title = element_text(hjust = 0.5, size = 15)) +
+  geom_text(aes(label = Freq), position = position_stack(vjust = 0.5), size = 3, angle = 30)
+
+
+
+table(seuratM$sample)
+
+```
+
+## Cellcount per condition after QC
+```{r}
+
+
+cell_count <- data.frame(table(seuratM$pat_sub))
+colnames(cell_count) <- c("Condition", "Freq")
+hsize <- 1.5
+
+ggplot(cell_count, aes(x = hsize, y = Freq, fill = Condition)) +
+  #scale_fill_manual(values = colpat2) +
+  geom_col(color = "white") +
+  coord_polar(theta = "y") +
+  xlim(c(0.2, hsize + 0.5)) +
+  theme_void() +
+  ggtitle("cell number") +
+  theme(plot.title = element_text(hjust = 0.5, size = 15)) +
+  geom_text(aes(label = Freq), position = position_stack(vjust = 0.5))
+
+# AM 29076, CMP 11635, Healthy 28290, Sarcoidosis 5069 
+
+
+```
+
+
+```{r}
+#cell count per cluster
+Idents(seuratM) <- seuratM$clusterName
+
+cellcount <- data.frame(table(seuratM$clusterName))
+colnames(cellcount) <- c("clusterName", "Freq")
+hsize <- 1.5
+
+ggplot(cellcount, aes(x = clusterName, y = Freq, fill = clusterName)) +
+  geom_col(color = "white") + 
+  theme_classic() +  
+  ggtitle("Cell Number by Cluster") +
+  theme(plot.title = element_text(hjust = 0.5, size = 15)) +
+  geom_text(aes(label = Freq), vjust = -0.3, size = 3) +  
+  xlab("Cluster Names") +  
+  ylab("Frequency (Cell Count)")  
+
+#cell count per patient
+cellcount_pat <- data.frame(table(seuratM$sample))
+colnames(cellcount_pat) <- c("sample", "Freq")
+hsize <- 1.5
+
+ggplot(cellcount_pat, aes(x = sample, y = Freq, fill = sample)) +
+  geom_col(color = "white") +  
+  theme_classic() +  
+  ggtitle("Cell Number by Patient") +
+  theme(plot.title = element_text(hjust = 0.5, size = 15)) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5)) +
+  geom_text(aes(label = Freq), vjust = -0.3, size = 3) +  
+  xlab("Patients") +  
+  ylab("Frequency (Cell Count)")  
+```
+
+
+
+## Metadata (detected and total counts)
+
+
+```{r}
+seuratM[["percent.mt"]] <- PercentageFeatureSet(seuratM, pattern = "^MT-")
+VlnPlot(seuratM, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"))
+```
+
+
+```{r}
+old
+TC_int <- c("o28576_1_01-1_20220525_Hu_nucseq_Graz_1_EMB_GEM", # AM 13
+            "353921_29-29_20240529_Hu_nucseq_Immpath_EMB24", # CMP 01
+            "353921_32-32_20240529_Hu_nucseq_Immpath_EMB29", # AM 29
+            "o28576_1_06-6_20220525_Hu_nucseq_Graz_6_EMB_GEM") #CMP 12
+            
+TC_low <- c("o28576_1_04-4_20220525_Hu_nucseq_Graz_4_EMB_GEM", #CMP 10
+            "o294781_11-11_20220912_Hu_nucseq_Graz_20_EMB_GEM", # Sarcoidosis 02
+            "o28576_1_13-13_20220525_Hu_nucseq_EMB32_GEM", # CMP 04
+            "o292731_4-4_20220818_Hu_nucseq_SG_34_EMB_GEM", # CMP 05
+            "353921_33-33_20240529_Hu_nucseq_Immpath_EMB30", # CMP 03
+            "o294781_06-6_20220912_Hu_nucseq_Graz_15_EMB_GEM", # AM 15
+            "359861_16-8_20240730_Hu_nucseq_Immpath_EMB47", # AM 09
+            "o294781_05-5_20220912_Hu_nucseq_Graz_14_EMB_GEM", # CMP 07
+            "353921_35-35_20240529_Hu_nucseq_Immpath_EMB37", # AM 08
+            "o292731_5-5_20220818_Hu_nucseq_SG_35_EMB_GEM", # Sarcoidosis 01
+            "o28576_1_05-5_20220525_Hu_nucseq_Graz_5_EMB_GEM", # CMP 11
+            "o28576_1_02-2_20220525_Hu_nucseq_Graz_2_EMB_GEM") # AM 14
+
+TC_vlow <- c ("o294781_02-2_20220912_Hu_nucseq_Graz_22_HH_GEM", # Healthy 06
+              "o27936_1_7-7_20220309_Hu_nucseq_EMB32_GEM", # AM 12
+              "o28576_1_08-8_20220525_Hu_nucseq_Graz_8_HH_GEM", # Healthy 01
+              "o294781_03-3_20220912_Hu_nucseq_Graz_23_HH_GEM", # Healthy 07
+              "353921_30-30_20240529_Hu_nucseq_Immpath_EMB25", # CMP 02
+              "353921_31-31_20240529_Hu_nucseq_Immpath_EMB27", # AM 05
+              "312581_06-6_20230308_Hu_nucseq_SG37_EMB_GEM", # AM 03
+              "312581_05-5_20230308_Hu_nucseq_SG36_EMB_GEM", # AM 02
+              "o294781_01-1_20220912_Hu_nucseq_Graz_21_HH_GEM", # Healthy 05
+              "353921_28-28_20240529_Hu_nucseq_Immpath_EMB18", # AM 04
+              "o28576_1_03-3_20220525_Hu_nucseq_Graz_3_EMB_GEM", # CMP 09
+              "o294781_04-4_20220912_Hu_nucseq_Graz_24_HH_GEM", # Healthy 08
+              "o294781_09-9_20220912_Hu_nucseq_Graz_18_EMB_GEM", # CMP 08
+              "359861_17-9_20240730_Hu_nucseq_Immpath_EMB48", # AM 10
+              "o28576_1_12-12_20220525_Hu_nucseq_Graz_12_HH_GEM", # Healthy 02
+              "o292731_1-1_20220818_Hu_nucseq_Graz_9_HH_GEM", # Healthy 03
+              "o292731_2-2_20220818_Hu_nucseq_Graz_13_HH_GEM", # Healthy 04
+              "o28576_1_07-7_20220525_Hu_nucseq_Graz_7_EMB_GEM", # CMP 06
+              "353921_34-34_20240529_Hu_nucseq_Immpath_EMB35", # AM 07
+              "o27533_1_12-12_20220203_Hu_nucseq_EMB31_GEM") # AM 11
+```
+
+
+## Sex allocation according to marker genes
+```{r}
+## Create Dotplot with marker genes
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+# Selected genes for DotPlot
+selGenes <- data.frame(geneID=rev(c("ZFY", "TXLNGY", "UTY", "XIST"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5") 
+
+DotPlot(seuratM, features = selGenes$gene, group.by= "sample") + RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+```
+
+
+
+
+```{r}
+
+# Identify duplicate cell names
+#duplicates <- duplicated(Cells(seuratM))
+
+#print(duplicates)
+#seuratM <- subset(seuratM, cells = Cells(seuratM)[!duplicates])
+#sum(duplicated(Cells(seuratM)))
+
+#options(future.globals.maxSize = 4 * 1024^3)  
+
+table(seuratM$sample, seuratM$clusterName)
+
+```
+
+
+
+
+```{r Scale and perform dimension reduction}
+
+
+#Run seurat
+seuratM <- NormalizeData (object = seuratM)
+seuratM <- FindVariableFeatures(object = seuratM)
+seuratM <- ScaleData(object = seuratM, verbose = TRUE)
+seuratM <- RunPCA(object=seuratM, npcs = 30, verbose = FALSE)
+
+ElbowPlot(seuratM, ndims = 30) +
+  ggplot2::geom_vline(xintercept = 25, linetype = "dashed", color = "red", linewidth = 1)
+
+seuratM <- RunTSNE(object=seuratM, reduction="pca", dims = 1:20)
+seuratM <- RunUMAP(object=seuratM, reduction="pca", dims = 1:20)
+seuratM <- FindNeighbors(object = seuratM, reduction = "pca", dims= 1:20)
+
+
+res <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 0.8)
+for (i in 1:length(res)) {
+  seuratM <- FindClusters(object = seuratM, resolution = res[i], random.seed = 1234)
+}
+
+```
+
+
+# ranks principle components (PC) based on the percentage of variance explained by each one. In this example the elbow is around 15. This suggests that # the majority of true signal is captured in the first 15 PCA
+
+
+```{r}
+saveRDS(seuratM, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_all_files_layers_22.02.26_filt_annotated.rds")
+
+```
+
+```{r}
+table(seuratM$sample, seuratM$clusterName)
+```
+
+
+```{r}
+saveRDS(seuratM, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_all_files_layers_20.02.26_filt_annotated.rds")
+
+```
+
+
+
+
+
+```{r, include = F}
+#library(future)
+#plan("multicore", workers = 4)  # Adjust number of workers based on your CPU
+
+#parallel::detectCores()
+#16
+#future::availableCores()
+#16
+
+#plan("multicore", workers = 12)  
+#options(future.globals.maxSize = 120000 * 1024^2)  
+#options(future.globals.maxSize = 4 * 1024^3)  
+
+
+#options("maxVSize" = 112640)  
+
+
+#seuratTC <- subset(seuratM, cells = sample(Cells(seuratM), 50000))
+```
+
+
+```{r, include = F}
+#library(clustree)
+#clustree::clustree(seuratM@meta.data[,grep("RNA_snn_res", colnames(seuratM@meta.data))],                  prefix = "RNA_snn_res.")
+
+#mem.maxVSize()
+
+#DefaultAssay(seuratM)
+
+
+```
+
+
+```{r, echo = FALSE}
+#library(clustree)
+#clustree::clustree(seuratM@meta.data[,grep("RNA_snn_res.", colnames(seuratM@meta.data))],                  prefix = "RNA_snn_res.")
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.1
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.2
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.3
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.4
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.6
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.8
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+
+```
+```{r}
+table(seuratM$sample, seuratM$RNA_snn_res.0.25)
+```
+
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+levels(seuratM)
+markers <- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+
+markers <- markers %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(markers)
+
+
+```
+
+
+
+
+
+```{r Save merged and cleaned file}
+##
+
+#saveRDS(seuratM, file="~/Documents/01 Projects/00 snRNAseq/01 Myocarditis snRNAseq/data/01 Merged Seurat #files/Myocarditis_merged_layers_raw_28_11_2025.rds")
+
+
+```
+
+```{r}
+Idents(seuratM) <- seuratM$pat_sub
+order1 <- c("DonorHeart","AM")
+seuratM$pat_sub <- factor (seuratM$pat_sub, levels = c("DonorHeart", "AM"))
+
+
+colpat_sub<- c("#dfc27d","#BE3144")
+names(colpat_sub) <- c("DonorHeart", "AM")
+
+Idents(seuratM) <- seuratM$pat_sub
+DimPlot(seuratM, reduction = "umap", cols = colpat_sub)
+
+```
+
+
+```{r}
+Idents(seuratM) <- seuratM$patient
+
+DimPlot(seuratM, reduction = "umap")
+
+```
+
+```{r}
+Idents(seuratM) <- seuratM$sample
+
+DimPlot(seuratM, reduction = "umap")
+```
+
+
+```{r}
+# Order of patient levels numerically
+Idents(seuratM) <- seuratM$patient
+
+seuratM$patient  <- factor(seuratM$patient, levels = c("Donor Heart 01", "Donor Heart 02", "Donor Heart 03", "Donor Heart 04", "Donor Heart 05", "Donor Heart 06", "Donor Heart 07", "Donor Heart 08", "Donor Heart 09", "Donor Heart 10", "Donor Heart 11", "AM 01", "AM 02", "AM 03", "AM 04", "AM 05", "AM 06", "AM 07", "AM 08", "AM 09", "AM 10", "AM 11", "AM 12", "AM 13", "AM 14", "AM 15", "AM 16", "AM 17", "AM 18", "AM 19", "AM 20", "AM 21", "AM 22", "AM 23", "AM 24", "AM 25"))
+
+
+table(seuratM$patient)
+
+
+seuratM$sample <- factor(seuratM$sample, levels = c("Donor Heart 01", "Donor Heart 02", "Donor Heart 03", "Donor Heart 04", "Donor Heart 05", "Donor Heart 06", "Donor Heart 07", "Donor Heart 08", "Donor Heart 09", "Donor Heart 10", "Donor Heart 11", "ZH-Immpath-AM-02", "ZH-Immpath-AM-10", "ZH-Immpath-AM-12", "ZH-Immpath-AM-18", "ZH-Immpath-AM-27", "ZH-Immpath-AM-29", "ZH-Immpath-AM-35", "ZH-Immpath-AM-37", "ZH-Immpath-AM-39", "ZH-Immpath-AM-47", "ZH-Immpath-AM-48", "ZH-Immpath-AM-54", "ZH-Immpath-AM-59",  "ZH-Immpath-AM-61", "ZH-Immpath-AM-63","ZH-Immpath-AM-84", "ZH-Immpath-AM-85", "ZH-Immpath-AM-86", "HeartRNAseq-AM-30", "HeartRNAseq-AM-31", "Graz-AM-01", "Graz-AM-02", "Graz-AM-15", "Berlin-AM-979", "Berlin-AM-1041", "Berlin-AM-1537"))
+
+
+## order of patients according to Sample ID
+Idents(seuratM) <- seuratM$sample
+
+
+table(seuratM$sample)
+
+
+Idents(seuratM) <- seuratM$patient
+DimPlot(seuratM, reduction = "umap", label = TRUE, repel = TRUE)
+
+Idents(seuratM) <- seuratM$sample
+DimPlot(seuratM, reduction = "umap", repel = TRUE, raster = TRUE)
+
+table(seuratM$sample)
+
+```
+
+
+
+```{r}
+
+###combined slots, plot umap for each condition
+#seuratM$patient_pat_sub <- paste0(seuratM$patient, '_', seuratM$pat_sub)
+#table(seuratM$patient_pat_sub)
+
+colpat_sub<- c("#dfc27d","#BE3144")
+names(colpat_sub) <- c("DonorHeart", "AM")
+
+
+Idents(seuratM) <- seuratM$pat_sub
+DimPlot(seuratM, reduction = "umap", cols = colpat_sub)
+
+seuratHealthy <- subset(seuratM, pat_sub == "DonorHeart")
+DimPlot(seuratHealthy, reduction = "umap", cols = colpat_sub)
+
+seuratAM <- subset(seuratM, pat_sub == "AM")
+DimPlot(seuratAM, reduction = "umap", cols = colpat_sub)
+
+table(seuratAM$orig.ident)
+
+```
+
+```{r Identify marker genes}
+# Examine PCA results and find the top marker genes
+print(seuratM[["umap"]], dims = 1:20, nfeatures = 10)
+
+
+```
+
+## FindAllMarkers
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+levels(seuratM)
+markersV2 <- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+
+markersV2 <- markersV2 %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(markersV2)
+
+```
+
+
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.2
+
+levels(seuratM)
+markers<- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+
+markers <- markers %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(markers)
+
+```
+
+
+
+```{r}
+#write.table(markers_samples, file = "~/Documents/01 Projects/00 snRNAseq/01 Myocarditis snRNAseq/docs/Markers for all samples and patients_21.04.2025", sep="\t",quote=F,row.names=F,col.names=T)
+
+```
+
+
+
+```{r}
+DEgenes_samples <- subset(markers_samples, de_genes$p_val_adj < 0.05)
+
+top_specific_markers <- DEgenes_samples %>%
+  group_by(cluster) %>%
+  top_n(3, avg_log2FC)
+
+```
+
+
+```{r}
+## Create Dotplot with marker genes
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+# Selected genes for DotPlot
+selGenes <- data.frame(geneID=rev(c("ZFY", "UTY", "XIST"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5") 
+
+DotPlot(seuratM, features = selGenes$gene, group.by= "sample") + RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+```
+
+
+
+```{r Identify marker genes}
+##cluster marker
+markers <- FindAllMarkers(seuratM) 
+
+markers
+Idents(seuratM)
+table(Idents(seuratM))
+
+
+# View the top markers per cluster
+head(markers)
+
+#save table
+#write.table(markers,file= "~/Documents/01 Projects/00 snRNAseq/01 Myocarditis snRNAseq/docs/Markers_all_filtered_03_04_25", sep="\t",quote=F,row.names=F,col.names=T)
+```
+
+
+
+
+
+
+## Feature Plots of Marker Genes
+```{r }
+## Find marker genes for each cluster
+
+get_full_gene_name <- function(gene, obj){
+  return(grep(gene,rownames(obj), value =TRUE))
+}
+get_full_gene_name("CD3E",seuratM) 
+
+#View(markers)
+##
+#FeaturePlot(seuratM, features = "ENSG00000177575.CD163", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+```
+
+### Baroreceptors, neuronal cells
+
+```{r}
+FeaturePlot(seuratM, features = get_full_gene_name("PIEZO1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRPV2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRPM4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))  
+```
+
+
+
+```{r}
+
+Idents(seuratAM) <- seuratAM$clusterName
+
+DimPlot(seuratAM, reduction = "umap", pt.size = 0.3, label = TRUE)
+
+DEGenesNC1vsNC2 <- FindMarkers (seuratAM, only.pos = FALSE, ident.1 = "NC1", ident.2 = "NC2", logfc.threshold = 0.2) %>% dplyr::filter(p_val_adj < 0.01)
+
+
+
+head(DEGenesNC1vsNC2)
+
+# Start from your DE table
+res <- as.data.frame(DEGenesNC1vsNC2 )
+
+# 1) add gene column from rownames
+res$gene <- rownames(res)
+
+
+res <- DEGenesNC1vsNC2  %>%
+  rownames_to_column("raw_id") %>%                 
+  mutate(
+    gene  = sub("^.*\\.", "", raw_id),             
+    EnsID = sub("\\..*$", "", raw_id))
+
+
+# 3) pick the correct column names across Seurat versions
+xcol <- if ("avg_log2FC" %in% names(res)) "avg_log2FC" else "avg_logFC"
+ycol <- if ("p_val_adj"  %in% names(res)) "p_val_adj"  else "p_val.adj"
+
+# 4) volcano (use sensible cutoffs)
+EnhancedVolcano(
+  res,
+  x = xcol,
+  y = ycol,
+  lab = res$gene,             
+  title = "DE Genes: NC1 vs. NC2",
+  xlab = expression(Log[2]*" fold change"),
+  pCutoff = 0.05,              # you had 10e-1 (=1) which is too high
+  FCcutoff = 0.25,             # log2FC threshold
+  cutoffLineType = "twodash",
+  cutoffLineWidth = 0.8,
+  pointSize = 2.0,
+  labSize = 3.5,
+  colAlpha = 1,
+  legendPosition = "right",
+  legendLabSize = 12,
+  legendIconSize = 5.0,
+  drawConnectors = FALSE)
+
+```
+SLITRK6
+NRXN1
+
+
+CNTNAP2
+GNRHR2
+PTPRD
+PTPRN2
+
+```{r}
+table(seuratM$sample, seuratM$RNA_snn_res.0.15)
+```
+
+
+
+```{r }
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+DimPlot(seuratAM, reduction = "umap", pt.size = 0.3, label = TRUE)
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD3D",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD3E",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000010610.CD4", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000090339.ICAM1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000164692.COL1A2", pt.size = 1, cols = c("lightgrey", "#BE3144")) # Fibroblast
+
+FeaturePlot(seuratM, features = get_full_gene_name("COL4A4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("FCGR1A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000107796.ACTA2", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IFNGR1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("ICAM1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CSF1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000185591.SP1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("GREM2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("BMP4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("SEMA4A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CLEC4A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CLEC4A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+```
+
+
+```{r }
+
+#FeaturePlot(seuratM, features = get_full_gene_name("TNTT2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("MYH6",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("MYH7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+
+# Visualize the expression of specific marker genes on UMAP
+FeaturePlot(seuratM, features = "ENSG00000164692.COL1A2", pt.size = 1, cols = c("lightgrey", "#BE3144")) # Fibroblast
+FeaturePlot(seuratM, features = "ENSG00000142173.COL6A2", pt.size = 1, cols = c("lightgrey", "#BE3144")) # Fibroblast
+FeaturePlot(seuratM, features = "ENSG00000113721.PDGFRB", pt.size = 1, cols = c("lightgrey", "#BE3144")) # Fibroblast
+
+FeaturePlot(seuratM, features = "ENSG00000135424.ITGA7", pt.size = 1, cols = c("lightgrey", "#BE3144")) # 
+FeaturePlot(seuratM, features = "ENSG00000143248.RGS5", pt.size = 1, cols = c("lightgrey", "#BE3144")) # Perivasc Fibroblast
+
+FeaturePlot(seuratM, features = "ENSG00000110799.VWF", pt.size = 1, cols = c("lightgrey", "#BE3144")) # ECs
+
+FeaturePlot(seuratM, features = "ENSG00000179776.CDH5", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000174059.CD34", pt.size = 1, cols = c("lightgrey", "#BE3144")) # endothelial cells
+
+FeaturePlot(seuratM, features = "ENSG00000118194.TNNT2", pt.size = 1, cols = c("lightgrey", "#BE3144")) # cardiomyocyte
+#FeaturePlot(seuratM, features = get_full_gene_name("MYH6",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#CM
+FeaturePlot(seuratM, features = "ENSG00000078814.MYH7B", pt.size = 1, cols = c("lightgrey", "#BE3144")) # cardiomyocyte
+
+FeaturePlot(seuratM, features = "ENSG00000163110.PDLIM5", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000177575.CD163", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000182578.CSF1R", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+#FeaturePlot(seuratM, features = get_full_gene_name("LYVE1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+
+FeaturePlot(seuratM, features = "ENSG00000081237.PTPRC", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000168685.IL7R", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+#FeaturePlot(seuratM, features = get_full_gene_name("CD3E",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+```
+
+
+```{r }
+FeaturePlot(seuratM, features = get_full_gene_name("CD3D",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD3G",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD79B",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("JCHAIN",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("S100A9",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+FeaturePlot(seuratM, features = get_full_gene_name("HLA-DMB",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #MHC expressing macrophages
+FeaturePlot(seuratM, features = get_full_gene_name("ACACB",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#adipocytes
+FeaturePlot(seuratM, features = get_full_gene_name("PLIN1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#adipocytes
+FeaturePlot(seuratM, features = get_full_gene_name("GPAM",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#adipocytes
+FeaturePlot(seuratM, features = get_full_gene_name("ITGA7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("ITGA1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD69",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000185811.IKZF1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000139187.KLRG1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000110324.IL10RA", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000011465.DCN", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000175084.DES", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000133110.POSTN", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000261371.PECAM1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+#FeaturePlot(seuratM, features = get_full_gene_name("ITGA10",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# BEC
+#FeaturePlot(seuratM, features = get_full_gene_name("CDH11",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# BEC
+
+FeaturePlot(seuratM, features = "ENSG00000133392.MYH11", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000107796.ACTA2", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("EGFL7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# EC BEC und LEC
+FeaturePlot(seuratM, features = get_full_gene_name("CDH11",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#endothelial cells
+FeaturePlot(seuratM, features = get_full_gene_name("CCL21",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("PROX1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("FLT4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# LEC
+FeaturePlot(seuratM, features = get_full_gene_name("LYVE1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+
+
+FeaturePlot(seuratM, features = "ENSG00000149591.TAGLN", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000138755.CXCL9", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000169245.CXCL10", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CXCL11",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000137573.SULF1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000125378.BMP4", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("GREM1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#
+FeaturePlot(seuratM, features = get_full_gene_name("GREM2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("THEMIS",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000211592.IGKC", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000078098.FAP", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000179915.NRXN1", pt.size = 1, cols = c("lightgrey", "#BE3144")) # neuron
+FeaturePlot(seuratM, features = "ENSG00000198910.L1CAM", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+```
+
+
+```{r }
+FeaturePlot(seuratM, features = get_full_gene_name("CD79A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("IGHM",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("CD20",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("MS4A1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells MS4A1 (CD20)
+FeaturePlot(seuratM, features = get_full_gene_name("IGHM",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("BLNK",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("IGHM",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("PRDM1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Plasma cells PRDM1 (Blimp-1)
+FeaturePlot(seuratM, features = get_full_gene_name("IRF4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#  
+```
+
+```{r}
+## Baroreceptors: PIEZO1, TRPV2, and TRPM4,
+
+FeaturePlot(seuratM, features = get_full_gene_name("PIEZO1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("TRPV2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Plasma cells PRDM1 (Blimp-1)
+FeaturePlot(seuratM, features = get_full_gene_name("TRPM4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#  
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("TURBB3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("ASIC2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Plasma cells PRDM1 (Blimp-1)
+FeaturePlot(seuratM, features = get_full_gene_name("NEFH",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#
+FeaturePlot(seuratM, features = get_full_gene_name("ASIC2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Plasma cells PRDM1 (Blimp-1)
+FeaturePlot(seuratM, features = get_full_gene_name("NEFH",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#
+
+##IHC/IF (heart, cardiopulmonary baroreceptors):
+#TUBB3 or PGP9.5 + PIEZO2 (± PIEZO1) + ASIC2 + NEFH (myelinated) ± TH/CHAT (efferents).
+#snRNA-seq (neuronal clusters):
+#CHAT, SLC18A3, NOS1, VIP (parasymp) TH, DBH, NPY (symp) 
+#SOX10, PLP1 (glia) 
+#PIEZO1, PIEZO2, ASIC2 (putative baroreceptors)  
+#NPPA, NPPB, CORIN (atrial endocrine CM) 
+#EDN1, NOS3 (endothelium).
+
+```
+
+
+
+
+```{r }
+Idents(seuratM) <- seuratM$patient
+DimPlot(seuratM, reduction = "umap", label = TRUE, repel = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$pat_sub
+DimPlot(seuratM, reduction = "umap", cols = colpat_sub) #%>% ggplotly
+```
+
+
+```{r }
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.1
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.2
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.3
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+
+table(seuratM$patient,seuratM$RNA_snn_res.0.15)
+table(seuratM$sample,seuratM$RNA_snn_res.0.15)
+
+```
+
+
+
+```{r, fig.height = 10}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+Idents(seuratM) <- seuratM$clusterName
+
+DimPlot(seuratM, reduction = "umap", label = T)
+
+library(ImmunoLogic)
+
+avgHeatmap(seuratM, selGenes = c("TTN", "MYBPC3", "RYR2", "TNNT2", "COL6A3", "DCN",  "FBN1", "C7", "PDGFRA", "CDH19", "PDGFRB", "BMP4", "GREM1", "GREM2", "ITGA7","RGS5", "NOTCH3", "MYH11", "ACTA2","PECAM1", "VWF", "EGFL7", "POSTN", "ITGA10", "PROX1", "CDH11", "ICAM1", "CCL21", "FLT4", "NRXN1", "ANK3", "PTPRZ1", "PLIN1", "GPAM", "CNTN2", "NRXN3", "SNAP25", "CD163", "LYVE1", "PDPN", "PROX1", "FLT4", "MRC1", "SIGLEC1", "STAB1", "CSF1R","MERTK", "SEMA4A", "HLA-DQB1", "CCR2", "CD79B", "GZMB", "IFNG", "IL7R","CD3E", "PTPRC", "CD2"))
+
+avgHeatmap(seuratM)
+
+avgHeatmap(seuratM, selGenes = c( "TTN", "MYBPC3", "RYR2", "NEBL", "CMYA5", "COL6A3", "DCN", "BMP",  "FBN1", "C7", "PDGFRA", "CDH19", "PDGFRB","ITGA7","RGS5", "NOTCH3", "MYH11", "ACTA2","PECAM1", "VWF", "EGFL7", "POSTN", "PDPN", "ITGA10", "CDH11","CCL21", "PROX1", "FLT4", "ACACB", "PLIN1", "GPAM", "CD163", "LYVE1", "HLA-DMB", "MRC1", "SIGLEC1", "CD163", "CCR2", "STAB1", "CSF1R", "MERTK", "CXCL10", "IL7R", "PTPRC", "IFNG", "CD2", "CD3E", "CD3D", "CD79B","MS4A1", "SIGL", "SEPTIN3","IGHM", "CXCL10", "NRXN1", "ANK3", "PTPRZ1", "CNTN2", "NKX2-5", "SLC6A2", "SNAP25", "CHRNA1", "WT1", "TBX18"))
+
+
+## implication in the development of the myocardium such as trabeculation of the developing heart.
+
+```
+
+```{r}
+table(seuratM$sample, seuratM$RNA_snn_res.0.2)
+```
+
+
+
+
+
+
+
+## Cellcount per cluster
+```{r}
+Idents(seuratM) <- seuratM$clusterName
+
+cellcount <- data.frame(table(seuratM$clusterName))
+colnames(cellcount) <- c("clusterName", "Freq")
+hsize <- 1.5
+
+ggplot(cellcount, aes(x = clusterName, y = Freq, fill = clusterName)) +
+  geom_col(color = "white") +
+  geom_text(aes(label = Freq), vjust = -0.3, size = 3) +
+  scale_fill_manual(values = colclusterName) +
+  labs(title = "Nuclei Number per Cluster",
+       x = "Cluster Names",
+       y = "Absolute Cell Nuclei Count") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+
+```
+
+
+```{r}
+Idents(seuratM) <- seuratM$clusterName
+
+seuratM@meta.data <- seuratM@meta.data %>%
+  mutate(patient_pat_sub = interaction(patient, pat_sub, sep = "_", drop = TRUE))
+
+# Counts
+dat_counts <- seuratM@meta.data %>%
+  count(patient_pat_sub, pat_sub, clusterName, name = "cnt")
+
+# Totals per patient_condition
+dat_totals <- seuratM@meta.data %>%
+  count(patient_pat_sub, pat_sub, name = "total_cells")
+
+# Relative abundance 
+dat_rel <- dat_counts %>%
+  left_join(dat_totals, by = c("patient_pat_sub", "pat_sub")) %>%
+  mutate(rel_abundance = cnt / total_cells)
+
+#Wilcoxon per cluster across cond2 groups
+pvals <- dat_rel %>%
+  group_by(clusterName) %>%
+  summarise(p_val = wilcox.test(rel_abundance ~ pat_sub, exact = FALSE)$p.value,
+            .groups = "drop") %>%
+  mutate(p_label = sprintf("p = %.3f", p_val))
+
+#table(seuratM$cond2)
+
+y_max <- dat_rel %>% 
+  group_by(clusterName) %>%
+  summarise(y_pos = max(rel_abundance))
+
+
+pvals <- left_join(pvals, y_max, by = "clusterName")
+
+ggbarplot(dat_rel,
+          x = "clusterName",
+          y = "rel_abundance",
+          fill = "pat_sub",
+          palette = colpat_sub,
+          add = c("mean_se"),
+          position = position_dodge(0.8),
+          xlab = "Cluster (Cell type)",
+          ylab = "Relative abundance",
+          legend.title = "Condition") + rotate_x_text(angle = 45) + theme_classic() + 
+theme(plot.title = element_text(hjust = 0.5, size = 15), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  ggrepel::geom_text_repel(data =  pvals, aes(x = clusterName, y = y_pos * 1.1, label = p_label), inherit.aes = FALSE, size = 2.5, direction = "y",nudge_y = 0.01, segment.size = 0.2, box.padding = 0.5, point.padding = 0.5)
+
+
+```
+
+
+
+
+```{r }
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+
+seuratM$clusterName <- "clusterName"
+Idents(seuratM) <- seuratM$clusterName
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "0" )] <- "Fb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "1" )] <- "PeriFb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "2" )] <- "BEC1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "3" )] <- "CM1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "4" )] <- "ResMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "5" )] <- "Lymphocytes"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "6" )] <- "inflMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "7" )] <- "VSMC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "8" )] <- "LEC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "9" )] <- "CM2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "10" )] <- "NC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "11" )] <- "Autonomic NS"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "12" )] <- "Fb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "13" )] <- "BEC2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "14" )] <- "PeriFb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "15" )] <- "AdipoC"
+
+
+#colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#fff7bc", "#43a2ca", #"#355C7D","#3288BD","#a6bddb", "#a8ddb5", "#01665e", "#66C2A5", "#e5f5e0","#ece2f0","#253494", "#BEAED4", #"#67001f","#fde0dd","#B45B5C","#fa9fb5","#D53E4F")
+
+
+colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#43a2ca", "#355C7D","#3288BD","#a6bddb","#BEAED4", "#a8ddb5", "#01665e", "#66C2A5","#253494", "#fde0dd","#fa9fb5","#D53E4F")
+
+
+names(colclusterName) <-c("CM1", "CM2","Fb1", "Fb2", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "LEC", "Autonomic NS", "NC", "AdipoC", "ResMph","inflMph", "Lymphocytes")
+
+#colpat_sub<- c("#dfc27d","#BE3144","#355C7D", "#779d8d")
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CM1", "CM2","Fb1", "Fb2", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "LEC", "Autonomic NS","NC", "AdipoC", "ResMph","inflMph", "Lymphocytes"))
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE)
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName)
+
+#table(seuratM$pat_sub)
+
+table(seuratM$orig.ident)
+
+table(seuratM$clusterName)
+
+
+```
+
+
+```{r}
+table(seuratM$sample, seuratM$clusterName)
+```
+
+
+
+## Relative abundance per condition
+
+```{r, echo = FALSE, fig.height = 8, fig.width = 6}
+
+
+
+datList <- NULL
+for(con in unique(seuratM$pat_sub)){
+  seuratMSub <- subset(seuratM, pat_sub==con)
+  print(dim(seuratMSub))
+  dat_con <- as.data.frame(table(seuratMSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratMSub)) %>% mutate(diseaseCond=con)
+  datList[[con]] <- dat_con
+  
+}
+
+dat_all <- do.call("rbind", datList)
+
+order_patsub <- c("DonorHeart","AM")
+
+#pdf("relative abundance feb26.pdf", width = 8, height = 6) 
+ggbarplot(dat_all, x = "diseaseCond", y = "percent", fill = "Var1", palette = colclusterName, legend = "right", legend.titel = "cluster", xlab = "condition", ylab = "frequency") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_discrete(limits = order_patsub)
+#dev.off()
+
+```
+
+
+
+
+
+´
+
+```{r}
+datList <- NULL
+for(con in unique(seuratM$sample)){
+  seuratMSub <- subset(seuratM, sample==con)
+  print(dim(seuratMSub))
+  dat_con <- as.data.frame(table(seuratMSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratMSub)) %>% mutate(sample=con)
+  datList[[con]] <- dat_con
+}
+
+
+dat_all <- do.call("rbind", datList)
+
+head(dat_all)
+
+
+sample_order <- c("Donor Heart 01", "Donor Heart 02", "Donor Heart 03", "Donor Heart 04", "Donor Heart 05", "Donor Heart 06", "Donor Heart 07", "Donor Heart 08", "Donor Heart 09", "Donor Heart 10", "ZH-Immpath-AM-02", "ZH-Immpath-AM-10", "ZH-Immpath-AM-12", "ZH-Immpath-AM-18", "ZH-Immpath-AM-27", "ZH-Immpath-AM-29", "ZH-Immpath-AM-35", "ZH-Immpath-AM-37", "ZH-Immpath-AM-47",  "ZH-Immpath-AM-54", "ZH-Immpath-AM-59",  "ZH-Immpath-AM-61", "ZH-Immpath-AM-63","ZH-Immpath-AM-77", "ZH-Immpath-AM-84", "ZH-Immpath-AM-85", "ZH-Immpath-AM-86", "ZH-Immpath-AM-98","HeartRNAseq-AM-30", "HeartRNAseq-31", "Graz-AM-01", "Graz-AM-02", "Graz-AM-15", "Berlin-AM-694", "Berlin-AM-979", "Berlin-AM-1041","Berlin-AM-1235", "Berlin-AM-1383", "Berlin-AM-1537")
+
+table(seuratM$sample)
+
+#View(dat_all)
+
+#write.table(dat_all, file= "~/Documents/01 Projects/00 snRNAseq/01 Myocarditis snRNAseq/docs/Markers_dat_all_clusters_frequency_relative abundance_V2", sep = "\t",quote=F,row.names=T,col.names=T)
+
+
+dat_all$sample <- factor(dat_all$sample, levels = sample_order)
+
+ggbarplot(dat_all, x= "sample", y= "percent", fill = "Var1", legend = "right", legend.titel = "cluster", ylab = "frequency", palette = colclusterName )  + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggbarplot(dat_all, x= "sample", y= "percent", fill = "Var1", legend = "right", legend.titel = "cluster", ylab = "frequency", palette = colclusterName )  + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+## Order and subset for lymphocytes --> descending
+dat_tc <- dat_all[dat_all$Var1 == "Lymphocytes", ]
+dat_all$sample <- factor(dat_all$sample, levels = dat_tc$sample[order(-dat_tc$percent)])
+
+
+ggbarplot(dat_all, x= "sample", y= "percent", fill = "Var1", legend = "right", legend.titel = "cluster", ylab = "frequency", palette = colclusterName )  + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+dat_tc <- dat_all %>%
+  filter(Var1 == "Lymphocytes") %>%
+  mutate(condition = ifelse(grepl("^Donor", sample), "DonorHeart", "AM"))
+
+# descending order percent of lymphocytes per condition
+dat_tc <- dat_tc %>%
+  group_by(condition) %>%
+  arrange(desc(percent), .by_group = TRUE) %>%
+  ungroup() %>%
+  mutate(condition = factor(condition, levels = c("DonorHeart", "AM")))
+
+
+ordered_patients <- dat_tc %>%
+  arrange(condition, desc(percent)) %>%
+  pull(sample)
+
+
+dat_all$sample <- factor(dat_all$sample, levels = ordered_patients)
+
+# Subset lymphocytes only
+dat_tc <- dat_all %>%
+  filter(Var1 == "Lymphocytes") %>%
+  mutate(condition = ifelse(grepl("^Donor", sample), "DonorHeart", "AM"))
+
+# Order within each condition by descending lymphocyte %
+dat_tc <- dat_tc %>%
+  group_by(condition) %>%
+  arrange(desc(percent), .by_group = TRUE) %>%
+  ungroup()
+
+dat_tc$condition <- factor(dat_tc$condition, levels = c("DonorHeart", "AM"))
+
+ordered_patients <- dat_tc %>%
+  arrange(condition, desc(percent)) %>%
+  pull(patient)
+
+dat_all <- dat_all %>%
+  mutate(condition = ifelse(grepl("^Donor", sample), "Donor Heart", "AM"),
+         condition = factor(condition, levels = c("Donor Heart", "AM")),
+         patient = factor(sample, levels = ordered_patients))
+
+cluster_levels <- c("CM1","CM2","Fb1","Fb2","PeriFb1","PeriFb2",
+                    "VSMC","BEC1","BEC2","LEC","Autonomic NS",
+                    "NC","AdipoC","ResMph","inflMph","Lymphocytes")
+
+dat_all$Var1 <- factor(dat_all$Var1, levels = cluster_levels)
+
+ggbarplot(dat_all,
+          x = "sample",
+          y = "percent",
+          fill = "Var1",
+          legend = "right",
+          legend.title = "Cluster",
+          ylab = "Relative abundance",
+          palette = colclusterName) +
+  facet_grid(~ condition, scales = "free_x", space = "free_x") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CM1", "CM2","Fb1", "Fb2", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "LEC", "Autonomic NS","NC", "AdipoC", "ResMph","inflMph", "Lymphocytes"))
+
+ggbarplot(dat_all, 
+          x = "sample", 
+          y = "percent", 
+          fill = "Var1", 
+          legend = "right", 
+          legend.title = "Cluster", 
+          ylab = "Relative abundance", 
+          palette = colclusterName) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) 
+
+
+View(dat_all)
+
+```
+
+
+
+```{r, fig.height = 9}
+## Create Dotplot with marker genes
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName)
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+# Selected genes for DotPlot
+selGenes <- data.frame(geneID=rev(c("XIST", "TTN", "MYBPC3", "RYR2", "NEBL", "CMYA5", "COL6A3", "DCN", "BMP",  "FBN1", "C7", "PDGFRA", "CDH19", "PDGFRB","ITGA7","RGS5", "NOTCH3", "MYH11", "ACTA2","PECAM1", "VWF", "EGFL7", "POSTN", "ITGA10", "CDH11","CCL21", "PROX1", "FLT4", "ACACB", "PLIN1", "GPAM", "CD163", "LYVE1", "HLA-DMB", "MRC1", "SIGLEC1", "STAB1", "CSF1R", "MERTK", "CXCL10", "IL7R", "PTPRC", "CD2", "CD3E", "CD3D", "CD79B","JCHAIN", "MS4A1", "KIT", "SIGL", "SEPTIN3","IGHM", "SEMA4A", "NRXN1", "ANK3", "PTPRZ1", "CNTN2", "NKX2-5", "SLC6A2", "SNAP25", "CHRNA1", "WT1", "TBX18"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5") 
+
+
+Idents(seuratM) <- seuratM$clusterName
+DotPlot(seuratM, features = selGenes$gene) #+ RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+
+```
+
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+levels(seuratM)
+
+#Idents(seuratM) <- seuratM$clusterName
+
+DEGenesClusters <- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+DEGenesClusters <- DEGenesClusters %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(DEGenesClusters)
+```
+
+```{r}
+##GSEA for AM (acute Myocarditis) condition
+DEGenes <- DEGenesClusters %>% filter(cluster == "8")
+#head(DEGenesAM)
+
+
+ego<- enrichGO(gene = unique(DEGenes$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "MF",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+ego <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+barplot(ego, showCategory=20, title = "Cluster", font.size = 16)
+```
+
+```{r}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(dplyr)
+
+# List 
+go_results <- list()
+
+# Loop cl0-20
+for (i in 0:20) {
+  # Subset DE genes for cluster i
+  cluster_genes <- DEGenesClusters %>% 
+    filter(cluster == as.character(i)) %>% 
+    pull(EnsID) %>% 
+    unique()
+
+
+  if (length(cluster_genes) > 0) {
+    ego <- enrichGO(gene = cluster_genes,
+                    OrgDb = org.Hs.eg.db,
+                    keyType = "ENSEMBL",
+                    ont = "BP",
+                    pAdjustMethod = "BH",
+                    pvalueCutoff = 0.05,
+                    qvalueCutoff = 0.05)
+
+   
+    ego <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+   
+    go_results[[paste0("Cluster_", i)]] <- ego
+
+   
+    barplot(ego, showCategory = 5, title = paste("Cluster", i), font.size = 14)
+  }
+}
+
+for (i in 0:20) {
+  cluster_name <- paste0("Cluster_", i)
+  ego <- go_results[[cluster_name]]
+
+  if (!is.null(ego) && nrow(ego@result) > 0) {
+    # Print each barplot for the clusters automatically
+   print(barplot(ego,
+            showCategory = 5,
+            title = paste("Cluster", i),
+            font.size = 14))
+  } else {
+    message("GO terms for Cluster ", i)
+  }
+}
+
+```
+
+
+```{r}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(dplyr)
+
+# Initialize list to store results
+go_results <- list()
+
+# Loop over clusters 0 to 20
+for (i in 0:20) {
+  # Subset DE genes for cluster i
+  cluster_genes <- DEGenesClusters %>%
+    filter(cluster == as.character(i)) %>%
+    pull(EnsID) %>%
+    unique()
+
+  # Run GO enrichment for all 3 ontologies
+  if (length(cluster_genes) > 5) {
+    try({
+      for (ontology in c("BP", "MF", "CC")) {  # Loop through BP, MF, CC
+        ego <- enrichGO(
+          gene          = cluster_genes,
+          OrgDb         = org.Hs.eg.db,
+          keyType       = "ENSEMBL",
+          ont           = ontology,
+          pAdjustMethod = "BH",
+          pvalueCutoff  = 0.05,
+          qvalueCutoff  = 0.05
+        )
+
+        ego <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+        # Store results in list with cluster and ontology names
+        go_results[[paste0("Cluster_", i, "_", ontology)]] <- ego
+
+        # Plot the top GO terms
+        print(barplot(ego, showCategory = 10, title = paste("Cluster", i, "-", ontology), font.size = 14))
+      }
+    })
+  }
+}
+
+for (i in 0:20) {
+  cluster_name <- paste0("Cluster_", i)
+  ego <- go_results[[cluster_name]]
+
+  if (!is.null(ego) && nrow(ego@result) > 0) {
+    # Print each barplot for the clusters automatically
+   print(barplot(ego,
+            showCategory = 5,
+            title = paste("Cluster", i),
+            font.size = 14))
+  } else {
+    message("GO terms for Cluster ", i)
+  }
+}
+```
+
+
+
+## KEGG library Functions of clusters
+```{r}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(dplyr)
+
+
+kegg_results <- list()
+
+for (i in 0:20) {
+
+  cluster_genes <- DEGenesClusters %>% 
+    filter(cluster == as.character(i)) %>% 
+    pull(EnsID) %>%
+    unique()
+
+  entrez_genes <- bitr(cluster_genes, 
+                       fromType = "ENSEMBL", 
+                       toType = "ENTREZID", 
+                       OrgDb = org.Hs.eg.db)
+
+  entrez_ids <- unique(entrez_genes$ENTREZID)
+
+  if (length(entrez_ids) > 0) {
+    # Run KEGG enrichment
+    kegg <- enrichKEGG(
+      gene          = entrez_ids,
+      organism      = "hsa",
+      pAdjustMethod = "BH",
+      pvalueCutoff  = 0.05
+    )
+
+    
+    kegg_results[[paste0("Cluster_", i)]] <- kegg
+
+    
+    barplot(kegg, showCategory = 5, title = paste("Cluster", i), font.size = 14)
+  }
+}
+
+
+for (i in 0:20) {
+  kegg <- kegg_results[[paste0("Cluster_", i)]]
+  if (!is.null(kegg) && nrow(kegg@result) > 0) {
+    print(barplot(kegg, showCategory = 10, title = paste("Cluster", i), font.size = 10))
+  } else {
+    message("KEGG terms for Cluster ", i)
+  }
+}
+
+```
+
+
+
+
+```{r}
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(dplyr)
+
+?enrichKEGG()
+
+# Initialize list to store results
+kegg_results <- list()
+
+# Loop over clusters 0 to 20
+for (i in 0:20) {
+  # Subset DE genes for cluster i
+  cluster_genes <- DEGenesClusters %>%
+    filter(cluster == as.character(i)) %>%
+    pull(EnsID) %>%
+    unique()
+
+  # Run KEGG enrichment if more than 5 genes
+  if (length(cluster_genes) > 5) {
+    try({
+      # Run KEGG pathway enrichment analysis
+      kegg_ego <- enrichKEGG(
+        gene         = cluster_genes,
+        organism     = "hsa",  # KEGG pathways for Homo sapiens
+        keyType      = "ENSEMBL",
+        pvalueCutoff = 0.05,
+        qvalueCutoff = 0.05
+      )
+
+      # Make KEGG gene names readable
+      kegg_ego <- setReadable(kegg_ego, OrgDb = org.Hs.eg.db)
+
+      # Store results in list with cluster name
+      kegg_results[[paste0("Cluster_", i)]] <- kegg_ego
+
+      # Plot the top KEGG pathways
+      print(barplot(kegg_ego, showCategory = 5, title = paste("Cluster", i), font.size = 14))
+    })
+  }
+}
+
+for (i in 0:20) {
+  cluster_name <- paste0("Cluster_", i)
+  ego <- go_results[[cluster_name]]
+
+  if (!is.null(ego) && nrow(ego@result) > 0) {
+    # Print each barplot for the clusters automatically
+   print(barplot(ego,
+            showCategory = 5,
+            title = paste("Cluster", i),
+            font.size = 14))
+  } else {
+    message("GO terms for Cluster ", i)
+  }
+}
+
+
+```
+
+
+```{r}
+seuratCM <- subset(seuratM, pat_sub %in% c("CM","Healthy"))
+
+table(seuratCM$orig.ident, seuratCM$patient)
+
+table(seuratCM$orig.ident)
+
+seuratCM <- subset(seuratM, pat_sub %in% c("CM","Healthy"))
+
+DimPlot(seuratCM, reduction = "umap", pt.size = 0.1, label = TRUE)
+
+
+seuratCM <- subset(seuratM, dataset %in% c("o28576_1_09-9_20220525_Hu_nucseq_Graz_9_HH_GEM",
+                                          "o28576_1_10-10_20220525_Hu_nucseq_Graz_10_HH_GEM",
+                                          "o28576_1_11-11_20220525_Hu_nucseq_Graz_11_HH_GEM"), invert = TRUE)
+```
+
+
+```{r}
+
+seuratCM <- subset(seuratM, clusterName %in% c("Fb2","Fb1"))
+
+table(seuratCM$orig.ident, seuratCM$sample)
+
+
+
+
+DimPlot(seuratCM, reduction = "umap", pt.size = 0.1, label = TRUE)
+
+```
+
+```{r}
+levels(seuratCM)
+CMmarkers <- FindAllMarkers(seuratCM, only.pos = F, logfc.threshold = 0.2)
+
+
+
+CMmarkers <- CMmarkers %>% dplyr::filter(p_val_adj < 0.01)
+
+
+CMmarkers <- CMmarkers %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+
+View(CMmarkers)
+```
+
+
+```{r}
+
+library(EnhancedVolcano)
+CMmarkers9 <- CMmarkers %>% filter(cluster == "9")
+
+cl9 <- as.data.frame(CMmarkers9)
+
+EnhancedVolcano(cl9, 
+                x = 'avg_log2FC',
+                y = 'p_val_adj',
+                lab = cl9$gene,
+                # xlim =c(-6, 6), 
+                title = 'DE Genes cluster 9 CM',
+                xlab = bquote(~Log[2]~ 'fold change'),
+                pCutoff = 10e-1,
+                FCcutoff = 1.5,
+    cutoffLineType = 'twodash',
+    cutoffLineWidth = 0.8,
+    pointSize = 2.0,
+    labSize = 3.0,
+    # shape = c(1,4, 23,25),
+    colAlpha = 1,
+    legendLabels=c('Not sig.','Log (base 2) FC','p-value',
+      'p-value & Log (base 2) FC'),
+    legendPosition = 'right',
+    legendLabSize = 12,
+    legendIconSize = 5.0,
+    # drawConnectors = TRUE,
+    # widthConnectors = 0.75,
+    # ridlines.major = FALSE,
+    gridlines.minor = FALSE)
+
+
+
+
+```
+
+```{r}
+VlnPlot(seuratM, features = c("nFeature_RNA", "nCount_RNA"), group.by = "clusterName", ncol = 3, raster = F)
+
+```
+
+```{r}
+#devtools::install_github('chris-mcginnis-ucsf/DoubletFinder')
+
+#library(DoubletFinder)
+
+#seuratM <- doubletFinder_v3(seuratM, PCs = 1:20, pN = 0.25, pK = 0.09, nExp = round(0.075 * ncol(seuratM)))
+
+# Visualize
+#DimPlot(seuratM, group.by = "clusterName")
+```
+
+```{r}
+library(destiny)
+library(Seurat)
+
+# Get normalized data
+data <- GetAssayData(seuratAM, slot = "data")
+
+# Run diffusion map
+dm <- DiffusionMap(t(as.matrix(data)))
+
+# Add first 2 diffusion components to metadata
+seuratAM$DC1 <- eigenvectors(dm)[,1]
+seuratAM$DC2 <- eigenvectors(dm)[,2]
+```
+
+
+```{r}
+FeaturePlot(seuratAM,
+            features = "ENSG00000180875.GREM2",
+            reduction = "diffmap",
+            min.cutoff = "q0",
+            max.cutoff = "q95")
+
+
+```
+
+
+
+```{r}
+
+
+seurat_immun <- subset(seuratM, RNA_snn_res.0.25 %in% c("4","6", "5"))
+
+table(seurat_immun$orig.ident, seurat_immun$sample)
+
+
+
+
+DimPlot(seurat_immun, reduction = "umap", pt.size = 0.1, label = TRUE)
+
+
+
+```
+
+```{r}
+
+#saveRDS(seuratM, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_29112025_v4.rds")
+
+```
+
+
+```{r}
+#saveRDS(seuratM, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_all_files_layers_25.05.25_filtered.rds")
+```
+
+
+```{r}
+Idents(seuratM) <- seuratM$clusterName
+
+Idents(seuratM) <- seuratM$sample
+
+```
+
+
+```{r fig.width = 15, fig.height = 7}
+
+# Violin Plot BMP4 per patient
+
+
+VlnPlot(seuratM, features = c("ENSG00000196189.SEMA4A", pt.size = 0.1 ))
+
+VlnPlot(seuratM, features = c("ENSG00000134545.KLRC1", pt.size = 0.1 ))
+
+VlnPlot(seuratM, features = c("ENSG00000196189.SEMA4A", pt.size = 0.1 ))
+
+VlnPlot(seuratM, features = c("ENSG00000134545.KLRC1", pt.size = 0.1 ))
+
+
+VlnPlot(seuratMph, features = c("ENSG00000198106.MERTK", 
+                                "ENSG00000260314.MRC1",
+                                "ENSG00000011028.MRC2",
+                                "ENSG00000114013.CD86",
+                                "ENSG00000121594.CD80",
+                                "ENSG00000121807.CCR2",
+                                "ENSG00000088827.SIGLEC1", # CD169 = SIGLEC1
+                                "ENSG00000196126.HLA-DRB1",
+                                "ENSG00000167601.AXL",
+                                "ENSG00000028839.TBPL1", # TLF
+                                "ENSG00000179344.HLA-DQB1",
+                                "ENSG00000168329.CX3CR1",
+                                "ENSG00000017427.IGF1",
+                                "ENSG00000196189.SEMA4A", pt.size = 0.1 ))
+
+
+genesMph<- c("ENSG00000198106.MERTK", 
+                                "ENSG00000260314.MRC1",
+                                "ENSG00000011028.MRC2",
+                                "ENSG00000114013.CD86",
+                                "ENSG00000121594.CD80")
+
+FeaturePlot(seuratMph, features = genesMph, pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+
+
+
+```
+
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$clusterName
+VlnPlot(seuratM, features = "ENSG00000150093.ITGB1", pt.size = 0.1, cols = colclusterName) + ggtitle ("CD29") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000169245.CXCL10", pt.size = 0.1, cols = colclusterName) + ggtitle ("CXCL10") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000138755.CXCL9", pt.size = 0.1, cols = colclusterName) + ggtitle ("CXCL9") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000169248.CXCL11", pt.size = 0.1, cols = colclusterName) + ggtitle ("CXCL11") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+
+VlnPlot(seuratM, features = "ENSG00000186810.CXCR3", pt.size = 0.1, cols = colclusterName) + ggtitle ("CXCR3") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000115415.STAT1", pt.size = 0.1, cols = colclusterName) + ggtitle ("STAT1") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000277632.CCL3", pt.size = 0.1, cols = colclusterName) + ggtitle ("CCL3") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000275302.CCL4", pt.size = 0.1, cols = colclusterName) + ggtitle ("CCL4") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000160791.CCR5", pt.size = 0.1, cols = colclusterName) + ggtitle ("CCR5") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+	
+
+VlnPlot(seuratM, features = "ENSG00000019991.HGF", pt.size = 0.1, cols = colclusterName) + ggtitle ("HGF") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000105976.MET", pt.size = 0.1, cols = colclusterName) + ggtitle ("MET (HGF-R)") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+VlnPlot(seuratM, features = "ENSG00000169429.CXCL8", pt.size = 0.1, cols = colclusterName) + ggtitle ("CXCL8") 
+VlnPlot(seuratM, features = "ENSG00000180871.CXCR2", pt.size = 0.1, cols = colclusterName) + ggtitle ("CXCR2") 
+
+VlnPlot(seuratM, features = "ENSG00000136244.IL6", pt.size = 0.1, cols = colclusterName) + ggtitle ("IL-6") +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+VlnPlot(seuratM, features = "ENSG00000160712.IL6R", pt.size = 0.1, cols = colclusterName) + ggtitle ("IL-6R") 
+
+
+
+VlnPlot(seuratM, features = "ENSG00000166923.GREM1", pt.size = 0.1, cols = colclusterName) + ggtitle ("GREM1") 
+
+
+
+VlnPlot(seuratM, features = "ENSG00000180875.GREM2", pt.size = 0.5, cols = colclusterName) + ggtitle ("GREM2") 
+
+
+
+VlnPlot(seuratM, features = "ENSG00000166923.GREM1", pt.size = 0.1) #, ) + ggtitle ("GREM1") 
+
+VlnPlot(seuratM, features = "ENSG00000180875.GREM2", pt.size = 0.2) +  scale_y_log10()#, ) + ggtitle ("GREM2") 
+
+VlnPlot(seuratM, features = "ENSG00000180875.GREM2", pt.size = 0.5) +
+  scale_y_continuous(limits = c(0, 5))
+
+VlnPlot(seuratM, features = "ENSG00000180875.GREM2", adjust = 0.5, pt.size = 1)
+
+VlnPlot(seuratM, features = "ENSG00000125378.BMP4", pt.size = 0.1)#, #cols = colclusterName) + ggtitle ("BMP4") 
+
+features <- c("ENSG00000166923.GREM1","ENSG00000180875.GREM2", "ENSG00000125378.BMP4")
+DotPlot(seuratM, features = features) 
+
+
+#"CXCL9", "CXCL10", "CXCL11", "CXCR3", "CCL3", "CCL4", "CCR5", "HGF", "MET", "IL6", "IL6R", "GREM1", "GREM2", "BMP4" 
+
+VlnPlot(seuratM, features = "ENSG00000177663.IL17RA", pt.size = 0.1, cols = colclusterName) + ggtitle ("IL17RA") 
+
+
+```
+
+
+
+
+```{r}
+
+get_full_gene_name <- function(gene, obj){
+  return(grep(gene,rownames(obj), value =TRUE))
+}
+get_full_gene_name("CXCL10",seuratM)
+
+## title optimization
+feature <- get_full_gene_name("GREM2", seuratM)
+FeaturePlot(seuratM, features = feature, cols = c("lightgrey", "darkblue"), pt.size = 7.0) +
+  ggtitle("GREM2")
+
+FeaturePlot(
+  object = seuratM,
+  features = feature,
+  min.cutoff = "q05",
+  max.cutoff = "q95") +
+  ggtitle("GREM2")
+
+FeaturePlot(seuratM, features = feature, min.cutoff = 0)
+FeaturePlot(seuratM, features = feature, max.cutoff = 2, pt.size = 0.2)
+
+
+
+
+```
+
+
+
+```{r }
+
+selGenes_BMP4 <- data.frame(geneID=rev(c("BMP4", "GREM1", "GREM2"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5") 
+
+DotPlot(seuratM, features = selGenes_BMP4, group.by= "clusterName") + RotatedAxis() + scale_color_viridis(option="F") + coord_flip()
+
+
+
+
+
+```
+
+```{r}
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+# Selected genes for DotPlot
+selGenes <- data.frame(geneID=rev(c("SEMA4A", "SEMA4D"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5") 
+
+DotPlot(seuratM, features = selGenes$gene, group.by= "clusterName") + RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+```
+
+
+```{r}
+Idents(seuratMph) <- seuratMph$clusterName
+levels(seuratMph)
+FindAllMarkers(seuratMph)
+
+DEGenesTcellCond <- FindAllMarkers(seuratMph, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+DEGenesTcellCond_adj <- DEGenesTcellCond %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(DEGenesTcellCond_adj)
+```
+
+
+```{r}
+##GSEA for AM (acute Myocarditis) condition
+DEGenesMphTRM1<- DEGenesTcellCond_adj %>% filter(cluster == "TRM1")
+#head(DEGenesAM)
+
+ego<- enrichGO(gene = unique(DEGenesMphTRM1$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoTRM1 <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+dotplot(egoTRM1, showCategory=20, title = "Healthy T cell GSEA", font.size = 16)
+```
+
+
+```{r barplot health<}
+
+barplot(egoTRM1, showCategory = 5, title = "TRM1")
+
+
+```
+```{r}
+##GSEA for AM (acute Myocarditis) condition
+DEGenesMphTRM2<- DEGenesTcellCond_adj %>% filter(cluster == "TRM1")
+#head(DEGenesAM)
+
+ego<- enrichGO(gene = unique(DEGenesMphTRM2$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoTRM2 <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+barplot(egoTRM1, showCategory=5, title = "TRM1", font.size = 16)
+
+
+Idents(seuratM) <- seuratM$TC
+table(seuratM$clusterName)
+```
+
+```{r}
+DEGenesMphTRM2<- DEGenesTcellCond_adj %>% filter(cluster == "TRM2")
+#head(DEGenesAM)
+
+ego<- enrichGO(gene = unique(DEGenesMphTRM2$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoTRM2 <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+barplot(egoTRM2, showCategory=5, title = "TRM2", font.size = 16)
+```
+
+DEGenesMphTRM2<- DEGenesTcellCond_adj %>% filter(cluster == "TRM2")
+#head(DEGenesAM)
+
+ego<- enrichGO(gene = unique(DEGenesMphTRM2$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoTRM2 <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+barplot(egoTRM1, showCategory=5, title = "TRM2", font.size = 16)
+
+```{r save RDS File}
+
+#saveRDS(seuratM, file= "~/Documents/01 Projects/00 snRNAseq/01 Myocarditis snRNAseq/data/01 Merged Seurat files/Myocarditis_HH2_HH3_removed_V2_26.09.2024.rds")
+
+
+```
+
+
+
+
+
+
+```{r}
+
+## Interferon gamma signature
+
+get_features <- function(gene_symbols, seurat_obj) {
+  rn <- rownames(seurat_obj)
+  matched <- c()
+  for (g in gene_symbols) {
+    hit <- grep(paste0("\\.", g, "$"), rn, value = TRUE)  
+    if (length(hit) > 0) {
+      matched <- c(matched, hit[1])  
+    } else {
+      message("Gene not found: ", g)
+    }
+  }
+  return(matched)
+}
+
+th1_genes <- c("CXCL9","CXCL10", "CXCL11", "CXCR3", "CXCL1", "CD69", "GREM2", "THEMIS", "GBP1", "GBP5", "CCR6", "CD74")
+
+th1_genes <- c("CXCL9","CXCL10", "CXCL11", "CXCR3", "CXCL1", "CD69", "GREM2", "THEMIS", "GBP1", "GBP5", "CCR6", "CD74", "RORC", "HLA-DQB1")
+
+th1_features <- get_features(th1_genes, seuratM)
+th1_features
+
+
+seuratM <- AddModuleScore(
+  object = seuratM,
+  features = list(th1_features),
+  name = "Inflammatory Signature",
+  search = FALSE)
+
+FeaturePlot(seuratM, features = "Inflammatory Signature1", pt.size = 3,
+            cols = c("lightgrey", "#BE3144"))
+
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+date()
+sessionInfo()
+
+```

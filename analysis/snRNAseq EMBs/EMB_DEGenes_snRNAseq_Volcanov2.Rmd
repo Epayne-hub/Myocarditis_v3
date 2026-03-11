@@ -1,0 +1,601 @@
+---
+title: "snRNAseq EMBs DE Genes"
+author: "EP"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+library(ggVennDiagram)
+library(ggvenn)
+library(ggrepel)
+library(scales)
+
+#BiocManager::install("ggVennDiagram")
+
+```
+
+
+```{r, echo  = F}
+
+
+#seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/EMB_Myocarditis_onlyAM_23.02.26_filt_SCtransform_doubletremoval_annotated_cleaned_TCsubgroupsMetadata.rds")
+
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_SC_transformed_doublet_removal_annotated_full_metadata_09_3_26")
+
+table(seuratM$orig.ident)
+table(seuratM$clusterName)
+
+
+```
+
+
+
+```{r, echo =  F}
+seuratM$clusterName <- "clusterName"
+Idents(seuratM) <- seuratM$clusterName
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "0" )] <- "Fb"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "1" )] <- "Tcells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "2" )] <- "BEC1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "3" )] <- "PeriFb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "4" )] <- "CM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "5" )] <- "InflMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "6" )] <- "ResMph"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "7" )] <- "Fb2" ## Doublet
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "8" )] <- "PeriFb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "9" )] <- "BEC2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "10" )] <- "NC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "11" )] <- "VSMC"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "12" )] <- "Fb3" ## Doublet
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "13" )] <- "Bcells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "14" )] <- "NC"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "15" )] <- "AdipoC" 
+
+
+#colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#fff7bc", "#43a2ca", #"#355C7D","#3288BD","#a6bddb", "#a8ddb5", "#01665e", "#66C2A5", "#e5f5e0","#ece2f0","#253494", "#BEAED4", #"#67001f","#fde0dd","#B45B5C","#fa9fb5","#D53E4F")
+
+
+colclusterName <- c("#fcc5c0" ,"#f4a582", "#FEE08B", "#feb24c","#8c2d04", "#01665e", "#66C2A5", "#807dba", "#355C7D","#3288BD","#a6bddb", "red3", "#91003f")
+
+
+#016450
+
+names(colclusterName) <-c("CM", "Fb", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "NC",  "ResMph","InflMph", "Bcells", "Tcells")
+
+#colpat_sub<- c("#dfc27d","#BE3144","#355C7D", "#779d8d")
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CM", "Fb", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "NC",  "ResMph","InflMph", "Bcells", "Tcells"))
+
+#Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+#DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE)
+
+#Idents(seuratM) <- seuratM$clusterName
+#DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName)
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = F, repel = TRUE, cols = colclusterName)
+
+
+
+
+```
+
+
+```{r}
+
+##  DE Genes T cell high vs. low accross all cells
+Idents(seuratM) <- seuratM$TC_group
+
+levels(seuratM)
+DEGenes <- FindAllMarkers(seuratM, only.pos = T, logfc.threshold = 0.2) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+
+
+DEGenes <- DEGenes %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+
+```
+
+
+## Venn diagram: number of DE Genes accross T cell abundance conditions
+```{r}
+gene_list <- split(DEGenes$gene, DEGenes$cluster)
+
+names(gene_list)
+
+##only counts
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/Venn diagram Tcell groups up and downregulated.pdf")
+ggVennDiagram(gene_list, label = "count", set_color = "black", color = "black",  label_alpha = 0) + scale_fill_gradient(low = "white", high = "red3") + theme(legend.position = "none") + labs(title = "DE Genes across T cell abundance states - all cells")
+#dev.off()
+```
+
+
+```{r}
+DEGenes %>% 
+  dplyr::filter(gene %in% c("GREM2"))
+
+```
+
+
+```{r, include = F}
+# Venn diagram showing number of DE genes between conditions
+library(ggVennDiagram)
+ggVennDiagram(gene_list) +
+  scale_fill_gradient(low = "white", high = "red3") + 
+  theme(legend.position = "none") +
+  labs(title = "Overlapping DE Genes across T cell abundance")
+
+ggVennDiagram(gene_list, label = "count",  set_color = "black", color = "black", label_alpha = 0) +scale_fill_distiller(palette = "Blues", direction = 0.8) +
+theme_void() +  theme(legend.position = "none", plot.title = element_text(hjust = 0.5, face = "bold", size = 14)) +
+labs(title = "Overlapping DE Genes across T cell abundance")
+
+
+```
+
+
+## FindallMarkers
+```{r}
+##  DE Genes T cell high vs. low accross all cells
+Idents(seuratM) <- seuratM$Inflammation_status
+
+levels(seuratM)
+DEGenesinfl <- FindAllMarkers(seuratM, only.pos = T, logfc.threshold = 0.2) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+DEGenesinfl <- DEGenesinfl %>% mutate(Gene=gene) %>% 
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>% mutate(EnsID=gsub("\\..*","", Gene))
+
+head(DEGenesinfl)
+
+```
+
+
+
+## Venn diagram according to inflammation status
+```{r}
+
+gene_list <- split(DEGenesinfl$gene, DEGenesinfl$cluster)
+
+names(gene_list)
+
+
+#BiocManager::install("ggvenn")
+
+
+gene_list <- split(DEGenesinfl$gene, DEGenesinfl$cluster)
+
+
+
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/Venn diagram inflamedvs.noninflamed only pos v3.pdf")
+ggvenn(gene_list,label = "count", fill_color = c("#fcbba1","red3"), fill_alpha = 0.7, stroke_color = "black", stroke_size = 0.8, set_name_color = "black", set_name_size = 5, text_color = "black", text_size = 5) + labs(title = "DE genes according to inflammation status") + theme_void()
+#dev.off()
+
+```
+
+
+
+## Volcano Plot between Tcell High and Low
+```{r, include = F}
+## DE Genes T cell high vs. low accross all cells
+Idents(seuratM) <- seuratM$TC_group
+
+
+de_high_vs_low <- FindMarkers(seuratM, 
+                              ident.1 = "Tcell High", 
+                              ident.2 = "Tcell Low", 
+                              logfc.threshold = 0, 
+                              min.pct = 0)
+
+de_high_vs_low <- de_high_vs_low %>%
+  mutate(Gene_raw = rownames(.)) %>%
+  mutate(clean_gene = gsub("^.*\\.", "", Gene_raw)) %>% 
+  mutate(EnsID = gsub("\\..*","", Gene_raw))            
+
+#View(de_high_vs_low)
+
+```
+
+
+```{r}
+## ##  DE Genes T cell high vs. low accross all cells
+Idents(seuratM) <- seuratM$Inflammation_status
+
+
+de_high_vs_low <- FindMarkers(seuratM, 
+                              ident.1 = "Inflamed", 
+                              ident.2 = "Non-inflamed", 
+                              logfc.threshold = 0.2, 
+                              min.pct = 0)
+
+de_high_vs_low <- de_high_vs_low %>%
+  mutate(Gene_raw = rownames(.)) %>%
+  mutate(clean_gene = gsub("^.*\\.", "", Gene_raw)) %>% 
+  mutate(EnsID = gsub("\\..*","", Gene_raw))  
+
+
+#View(de_high_vs_low)
+```
+
+
+
+
+## Volcano plot unformatted
+```{r, fig.width = 15, fig.height = 15}
+DEGenesadj <- de_high_vs_low %>%
+  tibble::rownames_to_column(var = "Gene") %>%
+  mutate(
+    gene = gsub("^.*\\.", "", Gene),   
+    EnsID = gsub("\\..*", "", Gene))
+
+res_AM <- as.data.frame(DEGenesadj)
+
+
+EnhancedVolcano(res_AM, 
+                x = 'avg_log2FC',
+                y = 'p_val_adj',
+                lab = res_AM$gene,
+                title = 'DE Genes Acute Myocarditis',
+                xlab = bquote(~Log[2]~ 'fold change'),
+                pCutoff = 0.05,
+                FCcutoff = 1.5,
+                cutoffLineType = 'twodash',
+                cutoffLineWidth = 0.8,
+                pointSize = 2.0,
+                labSize = 5.0,
+                colAlpha = 1,
+                legendLabels = c('Not sig.','Log2FC','p-value','p-value & Log2FC'),
+                legendPosition = 'right',
+                legendLabSize = 12,
+                legendIconSize = 5.0,
+                gridlines.minor = FALSE)
+
+## Top genes
+top_genes_AM <- DEGenesadj %>%
+  filter(p_val_adj < 0.05, abs(avg_log2FC) > 1) %>%
+  arrange(p_val_adj) %>%
+  slice_head(n = 100) %>%
+  pull(gene)
+
+top_genes_AM
+```
+
+## Rank of GREM2
+```{r, fig.width = 15, fig.height = 15}
+target_gene <- "GREM2"
+
+
+DEGenesadj %>% arrange(p_val_adj) %>% mutate(rank = row_number()) %>% filter(gene == target_gene) %>% 
+  dplyr::select(gene, p_val_adj, avg_log2FC, rank) 
+
+```
+
+
+## Enhanced Volcano accross all cell clusters selected genes labelled 
+```{r, fig.height = 8}
+
+
+# List the exact genes you want to show labels for
+genes_to_label <- c("CD8A", "CD4", "GZMB", "PRF1", "IL2", "GREM2", "BMP4", "IFNG", "TNF", "ICOS", "ICAM1", "IL7R", "CXCL9", "CXCL10", "CXCL11", "SLAMF7", "LYVE1", "GBP5", "STAT5", "STAT1", "RORC", "CD2", "CCL2", "CCL4", "IKZF3", "FOXP3", "PDCD1", "RUNX3", "CD6", "CXCL14", "NPPB", "NPPA", "BMPR1A" , "BMPR1B", "BMPR2", "TOX")
+
+EnhancedVolcano(de_high_vs_low,
+    lab = de_high_vs_low$clean_gene,  
+    x = 'avg_log2FC',                 
+    y = 'p_val_adj',                  
+    selectLab = genes_to_label,       
+    drawConnectors = TRUE,            
+    widthConnectors = 0.5,            
+    colConnectors = 'black',          
+    pCutoff = 0.01,                   
+    FCcutoff = 0.5,                   
+    pointSize = 2.0,                  
+    labSize = 4.5,                    
+    title = "Inflamed vs. non-inflamed",
+    subtitle = 'Differential Expression',
+    caption = bquote(~Log[2]~ "fold change cutoff: 0.5; Adj. p-value cutoff: 0.01"),
+    legendPosition = 'bottom',
+    legendLabSize = 10,
+    legendIconSize = 4.0,
+    border = 'partial',                  
+    borderWidth = 1.0,
+    borderColour = 'black') + 
+theme_classic()
+
+
+```
+
+
+
+```{r, include = F}
+
+
+## colour scheme
+keyvals <- ifelse(
+  de_high_vs_low$p_val_adj < 0.01 & de_high_vs_low$avg_log2FC > 0.5, 'firebrick',      # Upregulated
+    ifelse(de_high_vs_low$p_val_adj < 0.01 & de_high_vs_low$avg_log2FC < -0.5, 'royalblue', # Downregulated
+      'grey80'))                                                                       # Not Significant
+
+
+names(keyvals)[keyvals == 'firebrick'] <- 'Up-regulated'
+names(keyvals)[keyvals == 'royalblue'] <- 'Down-regulated'
+names(keyvals)[keyvals == 'grey80'] <- 'Not significant'
+
+
+
+EnhancedVolcano(de_high_vs_low,
+    lab = de_high_vs_low$clean_gene,  
+    x = 'avg_log2FC',                 
+    y = 'p_val_adj',  
+    
+   
+    colCustom = keyvals,              
+    
+   
+    selectLab = genes_to_label,       
+    drawConnectors = F,            
+    widthConnectors = 0.5,            
+    colConnectors = 'black',          
+    pCutoff = 0.01,                   
+    FCcutoff = 0.5,                   
+    pointSize = 2.0,                  
+    labSize = 4.5,                    
+    title = 'Tcell High vs Tcell Low',
+    subtitle = 'Differential Expression',
+    caption = bquote(~Log[2]~ "fold change cutoff: 0.5; Adj. p-value cutoff: 0.01"),
+    legendPosition = 'bottom',
+    legendLabSize = 10,
+    legendIconSize = 4.0,
+    border = 'partial',                  
+    borderWidth = 1.0,
+    borderColour = 'black') + 
+  theme_classic() +
+  theme(legend.position = "bottom")
+
+
+
+```
+
+
+## capping 99.5th percentile to remove outliers, top 0.5% of my most significant genes
+```{r, echo = T}
+
+target_gene <- "GREM2"
+
+plot_df <- de_high_vs_low %>%
+  mutate(
+    Gene_raw   = rownames(.),
+    clean_gene = gsub("^.*\\.", "", Gene_raw),
+    EnsID      = gsub("\\..*", "", Gene_raw),
+    neglog10padj = -log10(p_val_adj))
+
+target_y <- plot_df %>%
+  filter(clean_gene == target_gene) %>%
+  pull(neglog10padj)
+
+y_top <- max(target_y * 1.08, quantile(plot_df$neglog10padj, 0.995, na.rm = TRUE))
+
+
+y_max_finite <- max(plot_df$neglog10padj[is.finite(plot_df$neglog10padj)], na.rm = TRUE)
+
+y_top <- case_when(
+  target_y > y_max_finite ~ target_y * 1.1,
+  target_y <= y_max_finite ~ y_max_finite * 1.05,
+  TRUE ~ 10 )
+
+plot_df <- de_high_vs_low %>%
+  mutate(
+    Gene_raw   = rownames(.),
+    clean_gene = gsub("^.*\\.", "", Gene_raw),
+    EnsID      = gsub("\\..*", "", Gene_raw),
+
+    p_val_adj = ifelse(p_val_adj == 0, 1e-300, p_val_adj),
+    neglog10padj = -log10(p_val_adj))
+
+
+ggplot(plot_df, aes(x = avg_log2FC, y = neglog10padj)) +
+  geom_point(
+    data = subset(plot_df, !clean_gene %in% genes_to_label),
+    color = "grey85", alpha = 0.35, size = 1.6) +
+  geom_point(
+    data = subset(plot_df, clean_gene %in% genes_to_label & clean_gene != target_gene),
+    color = "#2C7FB8", alpha = 0.95, size = 2.4) +
+  geom_point(
+    data = subset(plot_df, clean_gene == target_gene),
+    shape = 21, fill = "#D81B60", color = "black", stroke = 1.1, size = 4) +
+  geom_text_repel(
+    data = subset(plot_df, clean_gene %in% genes_to_label),
+    aes(label = clean_gene),
+    size = 4,
+    max.overlaps = Inf) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10)) +
+  theme_classic()
+
+
+```
+## Volcano Plot scale_y_continuous with "sqrt" transformation
+```{r, include = F}
+
+ggplot(plot_df, aes(x = avg_log2FC, y = neglog10padj)) +
+  geom_point(alpha = 0.3, color = "grey80") + 
+  
+  geom_point(data = filter(plot_df, clean_gene == target_gene), 
+             aes(x = avg_log2FC, y = neglog10padj), 
+             color = "firebrick", size = 3) +
+
+  scale_y_continuous(trans = "sqrt") + 
+  geom_text_repel(data = filter(plot_df, clean_gene == target_gene),
+                  aes(label = clean_gene),
+                  box.padding = 0.5, 
+                  nudge_y = 2) +
+  theme_classic() +
+  labs(y = "-log10(P-adj square root scale")
+```
+
+```{r}
+
+target_gene <- "GREM2"
+
+genes_to_label <- c("CD8B", "CD4", "GZMB", "PRF1", "IL2", "GREM2", "BMP4", "IFNG", "TNF", "ICOS", "ICAM1", "IL7R", "CXCL9", "CXCL10", "CXCL11", "SLAMF7", "LYVE1", "MERTK", "SELENOP", "GBP5", "STAT5", "STAT1", "CD2", "CCL2", "CCL4", "IKZF3", "FOXP3", "PDCD1", "RUNX3", "CXCL14", "BMPR1A" , "BMPR1B", "TOX", "XIST", "CD40L", "FGF12",  "IL10", "TGFB1", "TGFB3", "GREM1")
+
+ggplot(plot_df, aes(x = avg_log2FC, y = neglog10padj)) +
+
+  geom_point(alpha = 0.3, color = "grey80") +  
+  geom_point(data = filter(plot_df, clean_gene %in% genes_to_label), color = "#2C7FB8", size = 2.5) +
+  geom_point(data = filter(plot_df, clean_gene == target_gene), color = "#D81B60", size = 4) +
+
+  scale_y_continuous(trans = "sqrt") + 
+ # geom_text_repel(data = filter(plot_df, clean_gene %in% c(target_gene, genes_to_label)), aes(label = clean_gene, color = #(clean_gene == target_gene)),box.padding = 0.5, nudge_y = 2, show.legend = F) +
+  
+  
+  geom_text_repel(data = filter(plot_df, clean_gene %in% c(target_gene, genes_to_label)),
+                  aes(label = clean_gene, color = (clean_gene == target_gene)),
+                  segment.color = NA,       
+                  box.padding = 0.6,        
+                  point.padding = 0.5,      
+                  nudge_y = 0.5,            
+                  direction = "y",          
+                  show.legend = FALSE) +
+  
+  scale_color_manual(values = c("TRUE" = "#D81B60", "FALSE" = "steelblue")) + theme_classic() +
+  labs(title = "DE Genes Acute Myocarditis", x = expression(log[2]~Fold~Change), y = "-log10(P-adj) (Square Root Scale)")
+
+```
+
+
+
+## Highlighting GREM2 in Volcano plot optimized visualization of selected genes with capped ceiling in range
+```{r, echo = T}
+
+#library(scales)
+
+target_gene <- "GREM2"
+
+genes_to_label <- c("CD8B", "CD4", "GZMB", "PRF1", "IL2", "GREM2", "BMP4", "IFNG", "TNF", "ICOS", "ICAM1", "IL7R", "CXCL9", "CXCL10", "CXCL11", "SLAMF7", "LYVE1", "MERTK", "SELENOP", "GBP5", "STAT5", "STAT1", "CD2", "CCL2", "CCL4", "IKZF3", "FOXP3", "PDCD1", "RUNX3", "CXCL14", "BMPR1A" , "BMPR1B", "TOX", "XIST", "CD40L", "FGF12",  "IL10", "TGFB1", "TGFB3", "GREM1")
+
+fc_cutoff <- 0.5
+p_cutoff  <- 0.01
+
+plot_df2 <- plot_df %>%
+  mutate(group = case_when(
+      clean_gene == target_gene ~ "Target",
+      clean_gene %in% genes_to_label & avg_log2FC >= fc_cutoff ~ "Selected up",
+      clean_gene %in% genes_to_label & avg_log2FC <= -fc_cutoff ~ "Selected down",
+      clean_gene %in% genes_to_label ~ "Selected other", TRUE ~ "Background"))
+
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/Volcano plot DE genes GREM2 v4.pdf", width = 8, height = 5)
+
+ggplot(plot_df2, aes(x = avg_log2FC, y = neglog10padj)) +
+
+  # background
+  geom_point(
+    data = subset(plot_df2, group == "Background"),
+    color = "grey85", alpha = 0.35, size = 1.6) +
+
+  # selected left/down = blue
+  geom_point(data = subset(plot_df2, group == "Selected down"), color = "#2C7FB8", alpha = 0.95, size = 2.5) +
+
+  geom_point(data = subset(plot_df2, group == "Selected up"),color = "#D81B60", alpha = 0.95, size = 2.5) +
+
+  
+  geom_point(data = subset(plot_df2, group == "Selected other"), color = "purple4", alpha = 0.95, size = 2.5 ) +
+
+  # GREM2 highlithed
+  geom_point(data = subset(plot_df2, group == "Target"), 
+             shape = 21, fill = "#e31a1c", color = "black", stroke = 1.2, size = 4.2) +
+
+  geom_vline(
+    xintercept = c(-fc_cutoff, fc_cutoff),
+    linetype = "dashed", color = "grey40", linewidth = 0.5) +
+  geom_hline(
+    yintercept = -log10(p_cutoff),
+    linetype = "dashed", color = "grey40", linewidth = 0.5) +
+
+  geom_text_repel(
+    data = subset(plot_df2, clean_gene %in% c(genes_to_label, target_gene)),
+    aes(label = clean_gene),
+    size = 4,
+    box.padding = 0.35,
+    point.padding = 0.2,
+    segment.color = "black",
+    segment.size = 0.3,
+    max.overlaps = Inf) +
+
+ scale_y_continuous(trans = pseudo_log_trans(base = 10),
+  expand = expansion(mult = c(0.02, 0.08))) +
+  
+  #scale_y_continuous(trans = "sqrt") + 
+
+  labs(title = "DE Genes Inflamed vs. Non-inflamed",
+    x = expression(log[2]~fold~change),
+    y = expression(-log[10]~adjusted~italic(P))) +
+
+  theme_classic(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    legend.position = "none")
+#dev.off()
+
+
+
+
+
+```
+
+
+```{r}
+date()
+
+sessionInfo()
+```
+
+
+
+
+
+

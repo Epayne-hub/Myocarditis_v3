@@ -1,0 +1,342 @@
+---
+title: "Merging TCRM immune cells"
+author: "EP"
+date: "22.02.2026"
+output: html_document
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(presto)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+
+
+```
+
+
+```{r}
+
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged TCRM rds/TCRM6w_3pooled_persample_22.02.2026_scaling")
+
+table(seuratM$orig.ident)
+
+```
+
+
+
+```{r}
+### load TCRM files and merge
+basedir <- "~/Documents/GitHub/Myocarditis EMB Project v3/data/TCRM"
+fileNamList <- list.files(path = basedir)
+
+
+for(i in 1:length(fileNamList)){
+  seuratS <- readRDS(paste0(basedir,"/", fileNamList[i]))
+  seuratS@assays$RNA@layers$scale.data <- NULL ## remove scale data slot to reduce size
+  if(exists("seuratM")){
+    seuratM <- merge(x = seuratM, y = seuratS)
+    cat("Merged", i, "of", length(fileNamList), "files - Totalcells:", ncol(seuratM), "\n")
+  }else{
+    seuratM <- seuratS
+    cat("Initialized with first Seurat object:")
+  }
+}
+
+##
+#
+remove(seuratS)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+###
+
+```
+
+
+
+```{r}
+
+seuratM <- JoinLayers(seuratM)
+
+```
+
+
+```{r}
+
+#saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged TCRM rds/TCRM_raw_22.02.2026")
+
+```
+
+
+```{r}
+
+TCRM6w_1 <- c("409891_11-11_20260127_Mu_TCRM_CD45pos_6wk_1_v4")
+TCRM6w_2 <- c("409891_12-12_20260127_Mu_TCRM_CD45pos_6wk_2_v4")
+
+seuratM$tcrm <- "tcrm_nr"
+
+seuratM$tcrm[which(seuratM$dataset %in% TCRM6w_1)] <- "TCRM6w_1"
+seuratM$tcrm[which(seuratM$dataset %in% TCRM6w_2)] <- "TCRM6w_2"
+
+table(seuratM$tcrm)
+
+sixweeks <- c("409891_11-11_20260127_Mu_TCRM_CD45pos_6wk_1_v4", "409891_12-12_20260127_Mu_TCRM_CD45pos_6wk_2_v4")
+
+seuratM$age <- "age"
+
+sixweeks <- c("409891_11-11_20260127_Mu_TCRM_CD45pos_6wk_1_v4", "409891_12-12_20260127_Mu_TCRM_CD45pos_6wk_2_v4")
+
+seuratM$age[which(seuratM$dataset %in% sixweeks)] <- "6w"
+
+table(seuratM$age)
+
+```
+
+
+```{r}
+##total is the sum of all counts while, detected means the number of different genes found
+
+library(ggrepel)
+library(dplyr)
+library(geomtextpath)
+
+meta.data <- seuratM@meta.data
+
+#View(meta.data)
+
+
+
+# Density plot total counts, compare means and median
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = tcrm, fill = tcrm)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 300) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(tcrm) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 1000),  
+    aes(x = total_median, y = 0, label = tcrm),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right") +
+  labs(title = "Density Plot of Total Counts by tcrm - 3 pooled per sample 6w")
+
+# Density plot for detected counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = tcrm, fill = tcrm)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(tcrm) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 1000),  
+    aes(x = detected_median, y = 0, label = tcrm),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black") +
+  labs(title = "Density Plot of Detected Counts by tcrm - 3 pooled per sample 6w")
+
+list(ptotalpat, pdetectedpat)
+
+#View(meta.data)
+
+```
+
+
+## Scale and Dimensionality Reduction
+```{r Scale and perform dimension reduction}
+
+#Run seurat
+seuratM <- NormalizeData (object = seuratM)
+seuratM <- FindVariableFeatures(object = seuratM)
+seuratM <- ScaleData(object = seuratM, verbose = TRUE)
+seuratM <- RunPCA(object=seuratM, npcs = 30, verbose = FALSE)
+
+ElbowPlot <- ElbowPlot(seuratM, ndims = 30) + ggplot2::geom_vline(xintercept = 25, linetype = "dashed", color = "red", linewidth = 1)
+dev.off()
+
+ElbowPlot
+
+seuratM <- RunTSNE(object=seuratM, reduction="pca", dims = 1:20)
+seuratM <- RunUMAP(object=seuratM, reduction="pca", dims = 1:20)
+seuratM <- FindNeighbors(object = seuratM, reduction = "pca", dims= 1:20)
+
+
+res <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 0.8)
+for (i in 1:length(res)) {
+  seuratM <- FindClusters(object = seuratM, resolution = res[i], random.seed = 1234)
+}
+
+```
+
+
+
+```{r}
+
+saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged TCRM rds/TCRM6w_3pooled_persample_22.02.2026_scaling")
+
+```
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.1
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.2
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.3
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.4
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.6
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.8
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+
+```
+
+
+
+```{r, echo = T}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+levels(seuratM)
+markersTCRM <- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+markersTCRMall <- FindAllMarkers(seuratM, only.pos = F)
+
+markersTCRMall <- markersTCRMall %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(markersTCRMall)
+
+
+```
+
+
+
+### Violin Plots
+#### by Cluster
+```{r}
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+#selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "IFNG", "TNF", "IL6", "IL17A", "CCR6", "CXCR3", "CXCL9", #"CXCL10", "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", "MET", "ENG", "BMPER", #"TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", "SHH", "RUNX2")) %>% 
+#  left_join(., genes, by="geneID")
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "CD4", "CD3E")) %>% 
+left_join(., genes, by="geneID")
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+pdf("violin_plots_EMB_allcells_Immpath_GREM2_axis_PBMCs.pdf", width = 8, height = 6)
+pList <- sapply(selGenes$gene, function(x){
+  p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1)
+  plot(p)
+})
+dev.off()
+
+###cols=colclusterName
+###p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+
+```
+
+
+
+
+## VlnPlot GREM2 and FeaturePlot
+```{r, echo = F}
+
+get_full_gene_name <- function(gene, obj){
+  return(grep(gene,rownames(obj), value =TRUE))
+}
+get_full_gene_name("CD3E",seuratM) 
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD3E",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) + ggtitle ("GREM2") 
+
+FeaturePlot(seuratM, features = get_full_gene_name("GREM2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) + ggtitle ("GREM2") 
+
+
+VlnPlot(seuratM, features = "ENSMUSG00000032093.Cd3e", pt.size = 0.1) + ggtitle ("CD3E") 
+
+### ENSMUSG00000050069 1:174661351-174749385:-1
+#Gremlin 2, DAN family BMP antagonist [Source:MGI Symbol;Acc:MGI:1344367]
+#Grem2-201 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+table(seuratM$RNA_snn_res.0.25)
+
+Tcell <- 2171 + 1254 + 1074 + 1059 + 271 + 190
+Tcell 
+
+```
+
+

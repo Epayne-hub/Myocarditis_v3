@@ -1,0 +1,445 @@
+---
+title: "EMB sample overview"
+author: "EP"
+date: "2024-09-22"
+output: html_document
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(gtsummary)
+library(dplyr)
+library (flextable)
+library(officer)
+
+
+```
+
+```{r}
+
+
+
+Samples <- read_excel("~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Clinical/Samples_snRNAseq_V4_04_2025_v.xlsx")
+
+View(Samples)
+
+#unique(Samples_cleaned$R_ID)
+#getwd(Samples_cleaned)
+
+
+
+```
+
+
+```{r}
+#Myocarditis <- filter(Samples, ! patient %in% c("AM 23", "AM 24", "AM 25", "AM 26", "AM 27", "AM 28", "CM 01", "CM 02", "CM 03", "CM 04", "CM 05", "CM 06", "CM 07", "CM 08", "CM 09", "CM 10", "CM 11", "CM 12", "CM 13", "CM 14", "CM 15"))
+
+
+##"ZH-Immpath-AM-99"  not processed yet
+
+Myocarditis <- filter(Samples, sample %in% c("Graz-AM-01", "Graz-AM-02", "Graz-AM-15", "HeartRNAseq-AM-30", "HeartRNAseq-AM-31", "Berlin-AM-979", "Berlin-AM-1041", "Berlin-AM-1537", "ZH-Immpath-AM-02" , "ZH-Immpath-AM-10", "ZH-Immpath-AM-12", "ZH-Immpath-AM-18" , "ZH-Immpath-AM-27", "ZH-Immpath-AM-29", "ZH-Immpath-AM-35",  "ZH-Immpath-AM-37",  "ZH-Immpath-AM-47", "ZH-Immpath-AM-54", "ZH-Immpath-AM-59", "ZH-Immpath-AM-61", "ZH-Immpath-AM-63",       "ZH-Immpath-AM-77", "ZH-Immpath-AM-84", "ZH-Immpath-AM-85", "ZH-Immpath-AM-86", "ZH-Immpath-AM-98"))
+
+
+# "Healthy 01", "Healthy 02", "Healthy 03", "Healthy 04", "Healthy 05", "Healthy 06", "Healthy 07", "Healthy 08", "Healthy 09", "Healthy 10", "Healthy 11"
+
+View(Myocarditis)
+
+colnames(Myocarditis)
+#unique(Samples$patient)
+nrow(Myocarditis)
+
+# Remove \r\n (carriage return and newline) from column names
+colnames(Myocarditis) <- gsub("\r\n", "", colnames(Myocarditis))
+
+print(colnames(Myocarditis), quote = TRUE)
+
+
+
+library(stringr)
+colnames(Myocarditis) <- str_trim(colnames(Myocarditis))
+
+colnames(Myocarditis) <- gsub("\r\n", "", colnames(Myocarditis))
+
+
+
+```
+
+
+
+
+```{r}
+# Clean the data by removing non-numeric characters and converting relevant columns to numeric
+Myocarditis <- Myocarditis %>%
+  mutate(
+    Age = as.numeric(gsub("[^0-9.]", "", Age)),
+    LVEF = as.numeric(LVEF))
+
+## Generate table with columns sorted by recruitment center
+tbl <- Myocarditis %>%
+  select(
+    Age,
+    sex,
+    Ventricle,
+    Cohort,
+  ) %>%
+  tbl_summary(
+    by = Cohort,
+    statistic = list(
+      all_continuous() ~ "{median} ({min}, {max})",
+      all_categorical() ~ "{n} / {N} ({p}%)"
+    ),
+    type = list(
+      Age ~ "continuous"
+    ),
+    digits = all_continuous() ~ 1,
+    label = list(
+      Recruitment_Center = "Recruitment Center",
+      Ventricle = "Ventricle",
+      Cohort = "Cohort",
+      Age = "Age",
+      sex = "Sex"
+    ),
+    missing = "no"
+  ) %>%
+  add_overall() # Add overall summary
+
+
+
+# Print the summary table to ensure it's the correct one
+print(tbl)
+```
+
+
+```{r}
+## inflammation status
+
+
+Non_inflamed <- c("Graz-AM-02", "HeartRNAseq-AM-30", "HeartRNAseq-AM-31", "ZH-Immpath-AM-10", "ZH-Immpath-AM-12",  "ZH-Immpath-AM-18", "ZH-Immpath-AM-27", "ZH-Immpath-AM-35",  "ZH-Immpath-AM-37",  "ZH-Immpath-AM-47", "ZH-Immpath-AM-54", 
+"ZH-Immpath-AM-59", "ZH-Immpath-AM-86")
+
+Inflamed <- c("Berlin-AM-1041", "Berlin-AM-1537", "Berlin-AM-979", "Graz-AM-01", "Graz-AM-15", "ZH-Immpath-AM-02", "ZH-Immpath-AM-29", "ZH-Immpath-AM-61", "ZH-Immpath-AM-63", "ZH-Immpath-AM-77", "ZH-Immpath-AM-84", "ZH-Immpath-AM-85", "ZH-Immpath-AM-98")
+
+
+Myocarditis$Inflammation_status <- NA
+
+Myocarditis$Inflammation_status[Myocarditis$sample %in% Non_inflamed] <- "Non-inflamed"
+Myocarditis$Inflammation_status[Myocarditis$sample %in% Inflamed] <- "Inflamed"
+
+table(Myocarditis$Inflammation_status)
+table(Myocarditis$Inflammation_status, Myocarditis$sample)
+
+View(Myocarditis)
+
+```
+
+
+```{r}
+# Clean the data by removing non-numeric characters and converting relevant columns to numeric
+Myocarditis <- Myocarditis %>%
+  mutate(
+    Age = as.numeric(gsub("[^0-9.]", "", Age)),
+    LVEF = as.numeric(LVEF),
+  )
+
+## Generate table with columns sorted by recruitment center
+tbl <- Myocarditis %>%
+  select(
+    Age,
+    sex,
+    Ventricle,
+    TropT,
+    NTproBNP,
+    CRP,
+    LVEF,
+    cardiogenic_shock,
+    Inflammation_status
+  ) %>%
+  
+  tbl_summary(
+    by = Inflammation_status,
+    statistic = list(
+      all_continuous() ~ "{median} ({min}, {max})",
+      all_categorical() ~ "{n} / {N} ({p}%)"
+    ),
+    type = list(
+      LVEF ~ "continuous",
+      Age ~ "continuous",
+      TropT ~ "continuous",
+      NTproBNP ~ "continuous",
+     CRP ~ "continuous"
+    ),
+    digits = all_continuous() ~ 1,
+    label = list(
+      TCgrp = "T cell abundance group", 
+      TropT = "Troponin T peak [ng/l]",
+      NTproBNP = "NTproBNP [ng/l]",
+      CRP = "CRP [mg/l]",
+      cardiogenic_shock = "Cardiogenic shock"),
+    missing = "no") %>%
+  add_overall() # Add overall summary
+
+
+
+# Print the summary table to ensure it's the correct one
+print(tbl)
+```
+
+
+
+```{r}
+# Clean the data by removing non-numeric characters and converting relevant columns to numeric
+Myocarditis <- Myocarditis %>%
+  mutate(
+    Age = as.numeric(gsub("[^0-9.]", "", Age)),
+    LVEF = as.numeric(LVEF),
+  )
+
+## Generate table with columns sorted by recruitment center
+tbl <- Myocarditis %>%
+  select(
+    Recruitment_Center,
+    Age,
+    sex,
+    Ventricle,
+    Cohort,
+    PBMCs
+  ) %>%
+  tbl_summary(
+    by = Recruitment_Center,
+    statistic = list(
+      all_continuous() ~ "{median} ({min}, {max})",
+      all_categorical() ~ "{n} / {N} ({p}%)"
+    ),
+    type = list(
+      Age ~ "continuous"
+    ),
+    digits = all_continuous() ~ 1,
+    label = list(
+      Recruitment_Center = "Recruitment Center",
+      Ventricle = "Ventricle",
+      Cohort = "Cohort",
+      Age = "Age",
+      sex = "Sex"
+    ),
+    missing = "no"
+  ) %>%
+  add_overall() # Add overall summary
+
+
+
+# Print the summary table to ensure it's the correct one
+print(tbl)
+```
+
+
+```{r}
+# Convert tbl_summary to flextable
+flextable_table <- tbl %>%
+  as_flex_table()
+
+# Create a new Word document
+doc <- read_docx()
+
+# Add the flextable to the document
+doc <- body_add_flextable(doc, value = flextable_table)
+
+# Save the document
+print(doc, target = "DH vs. AM Demographics.docx")
+```
+
+
+
+## Myocarditis AM vs. Healthy Clinical Baseline Characteristics
+```{r}
+MyocarditisAM <- filter(Myocarditis, ! patient %in% c("Healthy 01", "Healthy 02", "Healthy 03", "Healthy 04", "Healthy 05", "Healthy 06", "Healthy 07", "Healthy 08", "Healthy 09", "Healthy 10", "Healthy 11"))
+
+
+
+# "Healthy 01", "Healthy 02", "Healthy 03", "Healthy 04", "Healthy 05", "Healthy 06", "Healthy 07", "Healthy 08", "Healthy 09", "Healthy 10", "Healthy 11"
+
+View(MyocarditisAM)
+
+colnames(MyocarditisAM)
+#unique(Samples$patient)
+nrow(MyocarditisAM)
+
+# Remove \r\n (carriage return and newline) from column names
+colnames(MyocarditisAM) <- gsub("\r\n", "", colnames(MyocarditisAM))
+
+print(colnames(MyocarditisAM), quote = TRUE)
+
+
+
+library(stringr)
+colnames(MyocarditisAM) <- str_trim(colnames(MyocarditisAM))
+
+colnames(MyocarditisAM) <- gsub("\r\n", "", colnames(MyocarditisAM))
+
+
+
+```
+
+```{r}
+
+MyocarditisAM <- MyocarditisAM %>%
+  mutate(
+    Age = as.numeric(gsub("[^0-9.]", "", Age)),
+    LVEF = as.numeric (LVEF),
+    TropT = as.numeric(TropT),
+    NTproBNP = as.numeric(NTproBNP),
+    CRP = as.numeric(CRP),
+    Tcabundance = as.numeric(Tcabundance)
+    )
+
+# Create summary table
+tbl <- MyocarditisAM %>%
+  select(
+    Cohort,
+    Age,
+    sex,
+    TCgrp,
+    Tcabundance,
+    recurrent,
+    MCS,
+    LVEF,
+    TropT,
+    NTproBNP,
+    CRP
+  ) %>%
+  tbl_summary(
+    by = TCgrp,
+    statistic = list(
+      all_continuous() ~ "{median} ({min}, {max})",
+      all_categorical() ~ "{n} / {N} ({p}%)"
+    ),
+    type = list(
+      LVEF ~ "continuous",
+      Age ~ "continuous",
+      TropT ~ "continuous",
+      NTproBNP ~ "continuous",
+     CRP ~ "continuous"
+    ),
+    digits = all_continuous() ~ 1,
+    label = list(
+      TCgrp = "T cell abundance group", 
+      TropT = "Troponin T peak [ng/l]",
+      NTproBNP = "NTproBNP [ng/l]",
+      CRP = "CRP [mg/l]",
+      Tcabundance = "Percentage of T cells in EMB"
+    ),
+    missing = "no"
+  ) %>%
+  add_overall() # Add overall summary
+
+print(tbl)
+```
+
+
+```{r}
+# Print the summary table to ensure it's the correct one
+print(tbl)
+
+library (flextable)
+library(officer)
+
+# Convert tbl_summary to flextable
+flextable_table <- tbl %>%
+  as_flex_table()
+
+
+# Create a new Word document
+doc <- read_docx()
+
+# Add the flextable to the document
+doc <- body_add_flextable(doc, value = flextable_table)
+
+# Save the document
+print(doc, target = "Baseline characteristics AM_14.05.2025.docx")
+```
+
+
+
+
+
+
+```{r}
+# Clean the data by removing non-numeric characters and converting relevant columns to numeric
+snRNAseq_summary <- snRNAseq_summary %>%
+  mutate(
+    Age = as.numeric(gsub("[^0-9.]", "", Age)),
+    LVEF = as.numeric(LVEF),
+    Time_diff = as.numeric (Time_diff)
+  )
+
+
+####_____________________________________________________________
+## Generate table with columns sorted by Cohort Status
+tbl <- snRNAseq_summary %>%
+  select(
+    Recruitment_Center,
+    Age,
+    Sex,
+    Time_diff,
+    EMB_localization,
+    Cohort,
+    NCR_published
+  ) %>%
+  tbl_summary(
+    by = Cohort,
+    statistic = list(
+      all_continuous() ~ "{median} ({min}, {max})",
+      all_categorical() ~ "{n} / {N} ({p}%)"
+    ),
+    type = list(
+      Time_diff ~ "continuous",
+      Age ~ "continuous"
+    ),
+    digits = all_continuous() ~ 1,
+    label = list(
+      Seurat_ID = "Study ID",
+      Recruitment_Center = "Recruitment Center",
+      EMB_localization = "Localization of EMB",
+      Cohort = "Cohort",
+      Age = "Age",
+      Sex = "Sex",
+      Time_diff = "Time difference between EMBs",
+      NCR_published = "Published in Nature Cardiovascular Research",
+      Diagnosis = "Diagnosis"
+      
+    ),
+    missing = "no"
+  ) %>%
+  add_overall() # Add overall summary
+
+# Print the summary table to ensure it's the correct one
+print(tbl)
+```
+
+
+```{r}
+# Convert tbl_summary to flextable
+flextable_table <- tbl %>%
+  as_flex_table()
+
+# Create a new Word document
+doc <- read_docx()
+
+# Add the flextable to the document
+doc <- body_add_flextable(doc, value = flextable_table)
+
+# Save the document
+print(doc, target = "Clinical Data EMBs summary table by inflammation status.docx")
+
+
+```
+
+
+
+
+
+
+```{r}
+# Clean the data by removing non-numeric characters and converting relevant columns to numeric
+
+

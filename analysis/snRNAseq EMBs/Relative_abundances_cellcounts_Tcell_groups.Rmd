@@ -1,0 +1,793 @@
+---
+title: "Relative_abundances_cellcounts_Inflammation_status_Tcell_subgroup_classification"
+author: "EP"
+date: "23.02.2026"
+output: html_document
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+
+
+
+```
+
+
+```{r, echo  = F}
+#seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/EMB_Myocarditis_onlyAM_23.02.26_filt_SCtransform_doubletremoval_annotated_cleaned")
+```
+
+
+```{r}
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_onlyAM_23.02.26_filt_SCtransform_doubletremoval_annotated_cleaned_TCsubgroupsMetadata.rds")
+
+table(seuratM$orig.ident)
+table(seuratM$clusterName)
+
+```
+
+
+
+
+
+```{r, echo = F}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+
+seuratM$clusterName <- "clusterName"
+Idents(seuratM) <- seuratM$clusterName
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "0" )] <- "Fb"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "1" )] <- "Tcells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "2" )] <- "BEC1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "3" )] <- "PeriFb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "4" )] <- "CM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "5" )] <- "InflMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "6" )] <- "ResMph"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "7" )] <- "Fb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "8" )] <- "PeriFb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "9" )] <- "BEC2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "10" )] <- "NC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "11" )] <- "VSMC"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "12" )] <- "Fb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "13" )] <- "Bcells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "14" )] <- "NC"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "15" )] <- "AdipoC"
+
+
+#colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#fff7bc", "#43a2ca", #"#355C7D","#3288BD","#a6bddb", "#a8ddb5", "#01665e", "#66C2A5", "#e5f5e0","#ece2f0","#253494", "#BEAED4", #"#67001f","#fde0dd","#B45B5C","#fa9fb5","#D53E4F")
+
+
+colclusterName <- c("#fcc5c0" ,"#f4a582", "#FEE08B", "#feb24c","#8c2d04", "#01665e", "#66C2A5", "#807dba", "#355C7D","#3288BD","#a6bddb", "red3", "#91003f")
+
+
+#016450
+
+names(colclusterName) <-c("CM", "Fb", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "NC",  "ResMph","InflMph", "Bcells", "Tcells")
+
+#colpat_sub<- c("#dfc27d","#BE3144","#355C7D", "#779d8d")
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CM", "Fb", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "NC",  "ResMph","InflMph", "Bcells", "Tcells"))
+
+#Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+#DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE)
+
+#Idents(seuratM) <- seuratM$clusterName
+#DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName)
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = F, repel = TRUE, cols = colclusterName)
+
+#table(seuratM$pat_sub)
+
+```
+
+
+
+
+
+
+
+
+
+## T cell abundance and setting the margin for subcategories
+### Manual margin setup
+
+```{r, echo = F}
+datList <- NULL
+for(con in unique(seuratM$sample)){
+  seuratSub <- subset(seuratM, sample==con)
+  print(dim(seuratSub))
+  dat_con <- as.data.frame(table(seuratSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratSub)) %>% mutate(sample=con)
+  datList[[con]] <- dat_con
+}
+dat_all <- do.call("rbind", datList)
+
+
+#datList <- NULL
+#for(con in unique(seuratM$patient_pat_sub)){
+ # seuratSub <- subset(seuratAM, patient_pat_sub==con)
+  #print(dim(seuratSub))
+  #dat_con <- as.data.frame(table(seuratSub$clusterName)) %>%
+  #mutate(percent=Freq/ncol(seuratSub)) %>% mutate(patient_pat_sub=con)
+  #datList[[con]] <- dat_con
+#}
+#dat_all <- do.call("rbind", datList)
+
+#View(dat_all)
+
+dat_all <- as.data.frame(dat_all) 
+ 
+#dat_all[c('sample', 'pat_sub')] <- str_split_fixed(dat_all$patient_pat_sub, '_', 2)
+
+dat_all <- filter(dat_all, Var1 == "Tcells")
+
+
+dat_all$Tgrp <- NA
+
+
+## T cell subgroups
+dat_all$Tgrp[dat_all$percent > 0.05] <- "Tcell High > 5%"
+dat_all$Tgrp[dat_all$percent <= 0.05 & dat_all$percent >= 0.02] <- "Tcell Intermediate 2-5%"
+dat_all$Tgrp[dat_all$percent < 0.02] <- "Tcell Low < 2%"
+
+table(dat_all$Tgrp)
+
+
+#write.table(dat_all2, file= "/dat_all2_con_pat_Tc highvs.low_23.04.2025", sep="\t",quote=F,row.names=F,col.names=T)
+
+ggplot(dat_all, aes(x = Tgrp, y = percent, fill = Tgrp)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.5) +  
+  geom_jitter(size = 0.8, width = 0.2, aes(color = Tgrp)) +  
+  theme_classic() +
+  ggtitle("Frequencies of T cells") +
+  xlab("T cell groups") +
+  ylab("T Cell Frequency") +
+  stat_compare_means(label = "p.format",
+    comparisons = list(
+      c("Tcell High > 5%", "Tcell Intermediate 2-7%"),
+      c("Tcell High > 5%", "Tcell Low < 2%"),
+      c("Tcell Intermediate 2-5%", "Tcell Low < 1%")), method = "kruskal.test")
+
+
+table(dat_all$Tgrp)
+```
+
+
+```{r, echo = F}
+str(dat_all$percent)
+#print(dat_all)
+
+```
+## T cell group allocation according to ranks and tertile distribution (unbiased)
+```{r, echo = F}
+# tertiles
+dat_ntile <- dat_all %>%
+  mutate(Tgrp_rank = ntile(percent, 3)) %>%
+  mutate(Tgrp = case_when(
+    Tgrp_rank == 3 ~ "Tcell High",
+    Tgrp_rank == 2 ~ "Tcell Intermediate",
+    Tgrp_rank == 1 ~ "Tcell Low")) %>%
+  mutate(Tgrp = factor(Tgrp, levels = c("Tcell High", "Tcell Intermediate", "Tcell Low"))) %>%
+  arrange(percent) 
+
+#dat_ntile %>% 
+ # dplyr::select(sample, percent, Tgrp) %>% 
+  #print(n = Inf) 
+
+print(dat_ntile)
+```
+
+
+```{r, echo = T}
+## Count per Tcell group
+seuratM@meta.data %>%
+  distinct(sample, TC_group) %>%
+  count(TC_group)
+
+```
+
+
+```{r, echo = F}
+## ADD to metadata
+idx <- match(seuratM$sample, dat_ntile$sample)
+
+# 
+seuratM$TC_percent <- dat_ntile$percent[idx]
+
+# High/Int/Low T cell group classification
+seuratM$TC_group <- dat_ntile$Tgrp[idx]
+```
+
+
+```{r, echo = T}
+head(seuratM@meta.data[, c("sample", "TC_percent", "TC_group")])
+```
+
+## 
+```{r, echo = T}
+
+## nuclei per Tcell group
+table(seuratM$TC_group)
+
+```
+
+## T cell abundance per sample
+```{r, echo = F}
+ggplot(dat_ntile, aes(x = reorder(sample, percent), y = percent, color = Tgrp)) +
+  geom_point(size = 5) +
+  geom_segment(aes(x = sample, xend = sample, y = 0, yend = percent), linetype = "dotted") +
+  coord_flip() + 
+  theme_classic() +
+  scale_color_manual(values = c("Tcell Low" = "#fcbba1", 
+                                "Tcell Intermediate" = "#fb6a4a", 
+                                "Tcell High" = "darkred")) +
+  labs(title = "T-cell Abundance per Sample", 
+       x = "Sample", 
+       y = "T-cell Percentage")
+
+
+```
+
+
+
+```{r}
+DimPlot(seuratM, reduction = "umap", group.by = "TC_group", 
+        cols = c("Tcell Low" = "#fcbba1", 
+                 "Tcell Intermediate" = "#fb6a4a", 
+                 "Tcell High" = "darkred")) +
+  ggtitle("Cells mapped by T-cell Infiltration and abundance (tertia")
+```
+
+
+```{r}
+Idents(seuratM) <- seuratM$TC_group
+
+colsTC <- c("#fcbba1",  "#fb6a4a", "darkred")
+names(colsTC) <- c("Tcell Low", "Tcell Intermediate", "Tcell High")
+
+DimPlot(seuratM, reduction = "umap", split.by = "TC_group", cols = colsTC)
+
+```
+
+
+```{r}
+table(seuratM$TC_group, seuratM$clusterName)
+```
+
+```{r}
+table(seuratM$sample, seuratM$TC_group)
+
+
+```
+
+
+
+## Allocation to inflammation status (T cell abundance median)
+```{r, echo = F}
+datList <- NULL
+for(con in unique(seuratM$sample)){
+  seuratSub <- subset(seuratM, sample==con)
+  print(dim(seuratSub))
+  dat_con <- as.data.frame(table(seuratSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratSub)) %>% mutate(sample=con)
+  datList[[con]] <- dat_con
+}
+dat_all <- do.call("rbind", datList)
+
+#View(dat_tcells)
+
+dat_tcells <- clusterProfiler::filter(dat_all, Var1 == "Tcells")
+
+# split according to Median 
+binary <- dat_tcells %>%
+  mutate(inflammation_rank = ntile(percent, 2)) %>%
+  mutate(inflammation = case_when(
+    inflammation_rank == 2 ~ "Inflamed",
+    inflammation_rank == 1 ~ "Non-inflamed")) %>%
+  mutate(inflammation = factor(inflammation, levels = c("Non-inflamed", "Inflamed"))) %>%
+  arrange(percent) 
+
+
+#binary %>% 
+ # dplyr::select(sample, percent, inflammation) %>% 
+#  print(n = Inf)
+
+#print(binary)
+
+idx_binary <- match(seuratM$sample, binary$sample)
+
+# new metadata column for the binary split
+
+seuratM$Inflammation_status <- binary$inflammation[idx_binary]
+
+#seuratM@meta.data %>%
+ # distinct(sample, TC_group, Inflammation_status) %>%
+  #head()
+```
+
+
+```{r}
+sample_summary <- seuratM@meta.data %>%
+  distinct(sample, TC_group, Inflammation_status) %>%
+  left_join(binary %>% dplyr::select(sample, percent), by = "sample")
+
+sample_summary %>% arrange(desc(percent))
+
+## cut-off inflamed 2.3% (median)
+## T cell high > 6%, T cell intermediate 2-6%, T cell low < 2.3%
+
+```
+
+```{r}
+colCondition <- c("#fc9", "#BE3144")
+names(colCondition) <- c("Non-inflamed", "Inflamed")
+
+Idents(seuratM) <- seuratM$Inflammation_status
+DimPlot(seuratM, reduction = "umap", split.by = "Inflammation_status", cols = colCondition)
+
+seuratInflamed <- subset(seuratM, Inflammation_status == "Inflamed")
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/snRNAseq_EMB_Inflamed.pdf", width = 10)
+DimPlot(seuratInflamed, reduction = "umap", pt.size = 0.1, cols = colCondition, raster=FALSE)
+#dev.off()
+
+
+seuratNonInflamed <- subset(seuratM, Inflammation_status == "Non-inflamed")
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/snRNAseq_EMB_NonInflamed.pdf", width = 10)
+DimPlot(seuratNonInflamed, reduction = "umap", pt.size = 0.1, cols = colCondition, raster=FALSE)
+#dev.off()
+```
+
+
+```{r}
+seuratM@meta.data %>%
+  distinct(sample, Inflammation_status) %>%
+  count(Inflammation_status)
+
+```
+
+```{r}
+table(seuratM$Inflammation_status, seuratM$clusterName)
+```
+
+
+```{r }
+##nuclei per sample per inflammation status
+table(seuratM$sample, seuratM$Inflammation_status)
+  
+```
+
+```{r}
+ggplot(binary, aes(x = reorder(sample, percent), y = percent, color = inflammation)) +
+  geom_point(size = 5) +
+  geom_segment(aes(x = sample, xend = sample, y = 0, yend = percent), linetype = "dotted") +
+  coord_flip() + 
+  theme_classic() +
+  scale_color_manual(values = c("Non-inflamed" = "#fcbba1", 
+                                "Inflamed" = "#fb6a4a")) +
+  labs(title = "Inflammation status per Sample", 
+       x = "Sample", 
+       y = "T-cell Percentage")
+
+
+```
+
+
+
+
+## Relative abundance per Tcell group (tertile allocation) bar chart, pie chart and donut chart
+```{r, echo = FALSE}
+
+
+datList <- NULL
+for(con in unique(seuratM$TC_group)){
+  seuratMSub <- subset(seuratM, TC_group==con)
+  print(dim(seuratMSub))
+  dat_con <- as.data.frame(table(seuratMSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratMSub)) %>% mutate(TC_group=con)
+  datList[[con]] <- dat_con
+  
+}
+
+dat_all <- do.call("rbind", datList)
+
+order_TC_group <- c("Tcell High", "Tcell Intermediate", "Tcell Low")
+
+#pdf("relative abundance all cells_immune cells.pdf", width = 8, height = 6) 
+ggbarplot(dat_all, x = "TC_group", y = "percent", fill = "Var1", palette = colclusterName, legend = "right", legend.titel = "cluster", xlab = "condition", ylab = "frequency") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_discrete(limits = order_TC_group)
+#dev.off()
+
+
+ggplot(dat_all, aes(x = "", y = percent, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  facet_wrap(~ TC_group) +   
+  scale_fill_manual(values = colclusterName) +
+  labs(fill = "cluster") +
+  theme_void()
+
+ggplot(dat_all, aes(x = 2, y = percent, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  facet_wrap(~ TC_group) +
+  scale_fill_manual(values = colclusterName) +
+  xlim(0.5, 2.5) +   # controls hole size
+  labs(fill = "cluster") +
+  theme_void()
+
+table(seuratM$orig.ident)
+
+```
+
+
+## Relative abundance according to Inflammation status: Inflamed vs. non inflamed (median) Donut chart
+```{r, echo = F, width = 5, height = 12}
+datList <- NULL
+for(con in unique(seuratM$Inflammation_status)){
+  seuratMSub <- subset(seuratM, Inflammation_status==con)
+  print(dim(seuratMSub))
+  dat_con <- as.data.frame(table(seuratMSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratMSub)) %>% mutate(Inflammation_status=con)
+  datList[[con]] <- dat_con
+  
+}
+
+table(seuratM$Inflammation_status)
+
+dat_all <- do.call("rbind", datList)
+
+order_TC_group <- c("Non-inflamed", "Inflamed")
+
+dat_sub <- dat_all %>%
+  filter(Inflammation_status %in% c("Non-inflamed", "Inflamed"))
+```
+
+
+```{r, echo = T, width = 5, height = 12}
+ggbarplot(dat_all, x = "Inflammation_status", y = "percent", fill = "Var1", palette = colclusterName, legend = "right", legend.titel = "cluster", xlab = "condition", ylab = "frequency") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_x_discrete(limits = order_TC_group)
+```
+
+
+```{r, echo = T, width = 5, height = 12}
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/relative abundance circle EMB all cells.pdf")       
+ggplot(dat_sub, aes(x = 2, y = percent, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  facet_wrap(~ Inflammation_status) +
+  scale_fill_manual(values = colclusterName) +
+  xlim(0.5, 2.5) +  
+  labs(fill = "cluster") +
+  theme_void()
+
+#dev.off()
+
+```
+
+## Percent cells expressing GREM2 in all clusters
+```{r, echo = F}
+#Tcells <- colnames(seuratM)[seuratM@meta.data$clusterName == "Tcells"]
+
+#GREM2_expression <- LayerData(seuratM, layer = "data")["ENSG00000180875.GREM2", Tcells]
+
+Idents(seuratM) <- seuratM$Inflammation_status
+
+gene <- "ENSG00000180875.GREM2"
+
+
+mat <- LayerData(seuratM, layer = "data")
+
+df <- data.frame(
+  expression = as.numeric(mat[gene, ]),
+  condition = seuratM@meta.data[["Inflammation_status"]]) %>%
+  filter(!is.na(expression), !is.na(condition)) %>%
+  mutate(
+    condition = factor(condition, levels = c("Non-inflamed","Inflamed")),
+    expressed = expression > 0)
+
+summary_df <- df %>%
+  group_by(condition) %>%
+  summarise(
+    n_cells = n(),
+    n_expr = sum(expressed),
+    percent_expr = 100 * mean(expressed),
+    .groups = "drop")
+
+p_val <- if (n_distinct(df$condition) == 2) {
+  wilcox.test(expression ~ condition, data = df)$p.value
+} else {
+  NA_real_
+}
+
+p_label <- ifelse(is.na(p_val), "Wilcoxon p = NA", paste0("Wilcoxon p = ", signif(p_val, 3)))
+
+colpat_sub <- c("Inflamed" = "red3", "Non-inflamed" = "#fee0d2")
+y_top <- max(summary_df$percent_expr, na.rm = TRUE) * 1.15
+
+#pdf("GREM2 inflamed vs. non inflamed accross all clusters.pdf", width = 5, height = 6) 
+ggplot(summary_df, aes(x = condition, y = percent_expr, fill = condition)) +
+  geom_col(width = 0.7, alpha = 0.8) +
+  geom_text(aes(label = sprintf("%.1f%%", percent_expr)), vjust = -0.4, size = 4) +
+  annotate("text", x = 1.5, y = y_top, label = p_label, size = 4) +
+  scale_fill_manual(values = colpat_sub) +
+  coord_cartesian(ylim = c(0, y_top * 1.05)) +
+  theme_classic() +
+  labs(
+    title = paste0(gene, " expression by inflammation status"),
+    x = "Condition",
+    y = "Percent of cells expressing GREM2 across all clusters") +
+  theme(legend.position = "none")
+#dev.off()
+
+ggplot(summary_df, aes(x = percent_expr, y = condition, color = condition)) +
+
+  geom_segment(
+    aes(x = 0, xend = percent_expr, y = condition, yend = condition),
+    linewidth = 1.1,
+    color = "grey80") +
+
+geom_point(size = 6) +
+ geom_text(aes(label = sprintf("%.2f%%", percent_expr)),
+    hjust = -0.25,
+    size = 4.5,
+    fontface = "bold") +
+
+  scale_color_manual(values = colpat_sub) +
+
+  scale_x_continuous(
+    expand = expansion(mult = c(0, 0.25)),
+    breaks = scales::pretty_breaks(4)) +
+
+  theme_classic(base_size = 14) +
+
+  labs(
+    title = paste0(gene, " expression by inflammation status"),
+    subtitle = p_label,
+    x = "Percent of cells expressing GREM2",
+    y = NULL) +
+
+  theme(
+    legend.position = "none",
+    axis.title.x = element_text(face = "bold"),
+    plot.title = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"))
+
+```
+
+
+## Percent of cells expressing GREM2 in general T cell cluster 
+```{r,echo = F}
+
+
+gene <- "ENSG00000180875.GREM2"
+
+
+tcell_cells <- rownames(seuratM@meta.data)[seuratM@meta.data$clusterName == "Tcells"]
+
+mat <- LayerData(seuratM, layer = "data")
+
+df <- data.frame(
+  expression = as.numeric(mat[gene, tcell_cells]),
+  condition = seuratM@meta.data[tcell_cells, "Inflammation_status"]) %>%
+  filter(!is.na(expression), !is.na(condition)) %>%
+  mutate(condition = factor(condition, levels = c("Non-inflamed", "Inflamed")),
+    expressed = expression > 0)
+
+summary_df <- df %>%
+  group_by(condition) %>%
+  summarise(
+    n_cells = n(),
+    n_expr = sum(expressed),
+    percent_expr = 100 * mean(expressed),
+    .groups = "drop")
+
+p_val <- if (n_distinct(df$condition) == 2) {
+  wilcox.test(expression ~ condition, data = df)$p.value
+} else {
+  NA_real_
+}
+
+p_label <- ifelse(is.na(p_val), "Wilcoxon p = NA", paste0("Wilcoxon p = ", signif(p_val, 3)))
+
+colpat_sub <- c("Inflamed" = "red3", "Non-inflamed" = "#fee0d2")
+
+y_top <- max(summary_df$percent_expr, na.rm = TRUE) * 1.15
+
+ggplot(summary_df, aes(x = condition, y = percent_expr, fill = condition)) +
+  geom_col(width = 0.7, alpha = 0.8) +
+  geom_text(aes(label = sprintf("%.1f%%", percent_expr)), vjust = -0.4, size = 4) +
+  annotate("text", x = 1.5, y = y_top, label = p_label, size = 4) +
+  scale_fill_manual(values = colpat_sub) +
+  coord_cartesian(ylim = c(0, y_top * 1.05)) +
+  theme_classic() +
+  labs(title = paste0(gene, " expression in T cells by inflammation status"),
+    x = "Condition",
+    y = "Percent of cells expressing GREM2 in general T cell cluster") +
+  theme(legend.position = "none")
+
+
+```
+
+## UMAP by condition
+```{r, echo = F}
+
+table(seuratM$Inflammation_status)
+
+colpat_sub <- c("red3","#fee0d2")
+names(colpat_sub) <- c("Inflamed", "Non-inflamed")
+seuratM$Inflammation_status <- factor(seuratM$Inflammation_status, levels=c("Inflamed", "Non-inflamed"))
+
+
+Idents(seuratM) <- seuratM$Inflammation_status
+
+levels(seuratM)
+
+## visualize input data
+DimPlot(seuratM, reduction = "umap", cols = colpat_sub,  group.by = "Inflammation_status", raster = F, pt.size = 0.01)+
+  theme_classic() +
+  theme(axis.text = element_blank(), axis.ticks = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  xlab("UMAP1") +
+  ylab("UMAP2")
+
+
+
+```
+
+## cell count by condition
+```{r}
+
+cell_count <- data.frame(table(seuratM$Inflammation_status))
+colnames(cell_count) <- c("Condition", "Freq")
+hsize <- 1.5
+
+ggplot(cell_count, aes(x = hsize, y = Freq, fill = Condition)) +
+  geom_col(color = "white") +
+  coord_polar(theta = "y") +
+  xlim(c(0.2, hsize + 0.5)) +
+  theme_void() +
+  ggtitle("nuclei number") +
+  theme(plot.title = element_text(hjust = 0.5, size = 15)) +
+  scale_fill_manual(values = colpat_sub) +
+  geom_text(aes(label = Freq), position = position_stack(vjust = 0.5))
+
+```
+
+
+## cell count per cluster by condition
+```{r, echo = F}
+
+
+Idents(seuratM) <- seuratM$clusterName
+
+seuratM@meta.data <- seuratM@meta.data %>%
+  mutate(patient_cond2 = interaction(sample, Inflammation_status, sep = "_", drop = TRUE))
+
+# Counts
+dat_counts <- seuratM@meta.data %>%
+  count(patient_cond2, Inflammation_status, clusterName, name = "cnt")
+
+# Totals per patient_cond2
+dat_totals <- seuratM@meta.data %>%
+  count(patient_cond2, Inflammation_status, name = "total_cells")
+
+# Relative abundance 
+dat_rel <- dat_counts %>%
+  left_join(dat_totals, by = c("patient_cond2", "Inflammation_status")) %>%
+  mutate(rel_abundance = cnt / total_cells)
+
+#Wilcoxon per cluster across Inflammation_status groups
+pvals <- dat_rel %>%
+  group_by(clusterName) %>%
+  summarise(p_val = wilcox.test(rel_abundance ~ Inflammation_status, exact = FALSE)$p.value,
+            .groups = "drop") %>%
+  mutate(p_label = sprintf("p = %.3f", p_val))
+
+#table(seuratM$cond2)
+
+y_max <- dat_rel %>% 
+  group_by(clusterName) %>%
+  summarise(y_pos = max(rel_abundance))
+
+
+pvals <- left_join(pvals, y_max, by = "clusterName")
+
+ggbarplot(dat_rel,
+          x = "clusterName",
+          y = "rel_abundance",
+          fill = "Inflammation_status",
+          palette = colpat_sub,
+          add = c("mean_se"),
+          position = position_dodge(0.8),
+          xlab = "Cluster (Cell type)",
+          ylab = "Relative abundance",
+          legend.title = "Condition") + rotate_x_text(angle = 45) + theme_classic() + 
+theme(plot.title = element_text(hjust = 0.5, size = 15), 
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  ggrepel::geom_text_repel(data =  pvals, aes(x = clusterName, y = y_pos * 1.1, label = p_label), inherit.aes = FALSE, size = 2.5, direction = "y",nudge_y = 0.01, segment.size = 0.2, box.padding = 0.5, point.padding = 0.5)
+
+
+
+```
+
+
+
+## Alternative clustering method for T cell groups using k means (uneven distribution)
+```{r, echo = F}
+# k-means clustering in 3 groups
+set.seed(123) 
+km <- kmeans(dat_all$percent, centers = 3)
+
+dat_all$cluster <- km$cluster
+
+# K-means numbers clusters randomly --> map based on their actual centers
+cluster_means <- sort(km$centers)
+
+dat_all <- dat_all %>%
+  mutate(Tgrp = case_when(
+    percent <= max(percent[cluster == which(km$centers == cluster_means[1])]) ~ "Tcell Low",
+    percent >= min(percent[cluster == which(km$centers == cluster_means[3])]) ~ "Tcell High",
+    TRUE ~ "Tcell Intermediate"))
+
+dat_all$Tgrp <- factor(dat_all$Tgrp, levels = c("Tcell Low", "Tcell Intermediate", "Tcell High"))
+```
+
+
+```{r, echo = F}
+table(dat_all$Tgrp)
+
+#print(dat_all)
+
+```
+
+
+
+```{r}
+date()
+sessionInfo()
+```
+

@@ -1,0 +1,500 @@
+---
+title: "Doublet Finder"
+author: "EP"
+date: "2025-08-28"
+output: html_document
+---
+
+
+
+```{r setup, include = FALSE, fig.path = "custom/path", warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+```{r load libraries}
+
+
+suppressPackageStartupMessages({
+  library(Seurat)
+  library(ggpubr)
+  library(pheatmap)
+  library(SingleCellExperiment)
+  library(dplyr)
+  library(tidyverse)
+  library(viridis)
+  library(muscat)
+  library(circlize)
+  library(destiny)
+  library(scater)
+  library(metap)
+  library(multtest)
+  library(clusterProfiler)
+  library(org.Hs.eg.db)
+  library(msigdbr)
+  library(enrichplot)
+  library(DOSE)
+  library(grid)
+  library(gridExtra)
+  library(ggupset)
+  library(VennDiagram)
+  library(NCmisc)
+  library(RColorBrewer)
+  library(EnhancedVolcano)
+  library(textshaping)
+  library(wordcloud)
+  library(pathview)
+  library(workflowr)
+  library(here)
+  library(purrr)
+  library(dplyr)
+  library(stringr)
+  library(patchwork)
+  library(Matrix)
+  library(ggsci)
+  library(SeuratWrappers)
+  library(monocle3)
+  library(ggplot2)
+  library(scCustomize)
+  library(dittoSeq)
+  library(gridExtra)
+  library(gsubfn)
+  library(ggsci)
+  library(igraph)
+  library(EnhancedVolcano)
+  #library(textshaping)
+  library(miloR)
+})
+
+
+```
+
+
+
+```{r echo = FALSE}
+##load merged file: AM vs. Healthy
+
+seuratAM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_AMvsHealthy_merged_layers_filtered_25.05.25.rds")
+
+#table(seuratAM$dataset)
+```
+
+
+```{r, echo = T}
+table(seuratAM$orig.ident)
+table(seuratAM$RNA_snn_res.0.25)
+```
+
+
+
+
+
+
+
+
+
+```{r}
+seuratAM$clusterName <- "clusterName"
+Idents(seuratAM) <- seuratAM$clusterName
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "0" )] <- "Fb1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "1" )] <- "BEC1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "2" )] <- "PeriFb1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "3" )] <- "CM1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "4" )] <- "TRM1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "5" )] <- "Lymphocytes"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "6" )] <- "inflMph"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "7" )] <- "VSMC1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "8" )] <- "BEC2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "9" )] <- "CM3"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "10" )] <- "NC2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "11" )] <- "NC1"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "12" )] <- "TRM3"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "13" )] <- "Fb2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "14" )] <- "Int"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "15" )] <- "CM2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "16" )] <- "Fb3"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "17" )] <- "VSMC2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "18" )] <- "BEC3"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "19" )] <- "LECs"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "20" )] <- "TRM2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "21" )] <- "PeriFb2"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "22" )] <- "Adipocytes"
+seuratAM$clusterName[which(seuratAM$RNA_snn_res.0.25 %in% "23" )] <- "Mast cells"
+
+## BEC3 high ICAM1, in NC2 high neurosynaptic monoaminergic activation
+
+colclusterName <- c("#f4a582", "#D53E4F", "#e34a33", "#FEE08B","#feb24c", "#fff7bc","#e5f5e0","#3288BD", "#1c9099", "#253494", "#a8ddb5", "#01665e", "#66C2A5","#c7eae5", "#67001f", "#355C7D","#54278f", "#ece2f0", "#fa9fb5","#a6bddb", "#BEAED4","#B45B5C","#fde0dd", "#dd1c77")
+
+#"#BEAED4"                   
+names(colclusterName) <- c("CM1", "CM2", "CM3", "Fb1","Fb2","Fb3", "Int", "PeriFb1", "PeriFb2", "VSMC1", "VSMC2","BEC1","BEC2", "BEC3", "LECs", "NC1", "NC2", "Adipocytes", "Mast cells", "TRM1", "TRM2", "TRM3", "inflMph","Lymphocytes")
+
+colpat_sub<- c("#dfc27d","#BE3144","#355C7D", "#779d8d")
+
+seuratAM$clusterName <- factor(seuratAM$clusterName, levels=c("CM1", "CM2", "CM3", "Fb1","Fb2","Fb3", "Int", "PeriFb1", "PeriFb2", "VSMC1", "VSMC2","BEC1","BEC2", "BEC3", "LECs", "NC1", "NC2", "Adipocytes", "Mast cells", "TRM1", "TRM2", "TRM3", "inflMph","Lymphocytes"))
+
+Idents(seuratAM) <- seuratAM$RNA_snn_res.0.25
+DimPlot(seuratAM, reduction = "umap", label = TRUE, repel = TRUE)
+
+Idents(seuratAM) <- seuratAM$clusterName
+DimPlot(seuratAM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName, raster = T)
+#pdf("umap_clusters_no_label_AM.pdf", width = 8, height = 6)  
+#DimPlot(
+ # seuratAM, 
+  #reduction = "umap", 
+  #label = FALSE, 
+  #repel = TRUE, 
+  #cols = colclusterName,  
+  #raster = TRUE)
+#dev.off()
+
+
+
+Idents(seuratAM) <- seuratAM$clusterName
+DimPlot(seuratAM, reduction = "umap",label = F, cols = colclusterName, raster = T)
+```
+
+
+
+```{r}
+
+#remove.packages("DoubletFinder")
+
+
+#devtools::install_github('chris-mcginnis-ucsf/DoubletFinder')
+
+
+
+library(DoubletFinder)
+
+exists("paramSweep")  
+
+
+```
+
+
+```{r}
+## BCmvn (mean-variance normalized bimodality coefficient).
+
+
+## estimated doublet rate 10-15%
+# sct = SC Transform, not used here
+# pK: used to calculate each cell's doublet probability, controls size of neighbourhood
+
+rate <- 0.1                 
+pcs  <- 1:20                 
+use_sct <- FALSE 
+n_cells <- ncol(seuratM)
+nExp_raw <- round(rate * n_cells)
+message("nExp (raw) = ", nExp_raw)
+# nExp (raw) = 10827
+
+#nExp <- round(0.13 * 83283)  
+#print(nExp)
+#sweep.res <- paramSweep(seuratAM, PCs = 1:20, sct = FALSE)
+#sweep.stats <- summarizeSweep(sweep.res, GT = FALSE)
+#best.pk <- find.pK(sweep.stats)$pK[which.max(find.pK(sweep.stats)$BCmetric)]
+#print(best.pk)
+
+
+sweep.res   <- paramSweep(seuratM, PCs = pcs, sct = use_sct)
+sweep.stats <- summarizeSweep(sweep.res, GT = FALSE)
+bcmvn       <- find.pK(sweep.stats)  
+head(bcmvn)
+
+
+
+
+```
+
+
+```{r}
+bcmvn$pK_num <- suppressWarnings(as.numeric(as.character(bcmvn$pK)))
+best.idx     <- which.max(bcmvn$BCmetric)
+best.pK      <- bcmvn$pK_num[best.idx]
+message("Best pK = ", best.pK)
+
+
+best.pK
+# 0.005
+
+## Bimodality Coefficient (BC): statistical measure of how strongly a distribution deviates from unimodality.
+## mean BC average BC across all principal components tested for a given pK. High MeanBC means that, on average, the PCs are showing bimodality (better separation).
+
+## A low VarBC suggests that most PCs agree on the signal (consistent bimodality).A high VarBC means only a few PCs are driving the signal (less stable).
+
+ggplot(bcmvn, aes(x = as.numeric(as.character(pK)), y = BCmetric)) +
+  geom_line() +
+  geom_point() +
+  xlab("pK") +
+  ylab("BCmvn") +
+  theme_minimal()
+
+
+bcmvn$pK_num <- suppressWarnings(as.numeric(as.character(bcmvn$pK)))
+
+if (requireNamespace("ggplot2", quietly = TRUE)) {
+  library(ggplot2)
+  ggplot(bcmvn, aes(x = pK_num, y = BCmetric)) +
+    geom_line() + geom_point() +
+    xlab("pK") + ylab("BCmvn") + ggtitle("DoubletFinder pK sweep")
+}
+#str(bcmvn)
+
+
+```
+
+## 
+```{r}
+
+clust <- if ("clusterName" %in% colnames(seuratM@meta.data)) {
+  as.factor(seuratM$clusterName)
+} else {
+  as.factor(Seurat::Idents(seuratM))   
+}
+
+homotypic.prop <- modelHomotypic(clust)
+nExp_raw <- round(0.1 * ncol(seuratM))
+nExp_adj <- round(nExp_raw * (1 - homotypic.prop))
+
+nExp_adj
+
+#3673
+
+md <- seuratM@meta.data
+seuratM@meta.data <- md[, !grepl("^(pANN|DF\\.classifications)($|_)", colnames(md)), drop = FALSE]
+
+
+```
+
+```{r}
+seuratM_noDoublets <- doubletFinder(
+  seuratM,
+  PCs        = pcs,
+  pN         = 0.25,
+  pK         = best.pK,
+  nExp       = nExp_adj,
+  sct        = FALSE)
+
+
+```
+
+
+
+
+```{r}
+
+suppressPackageStartupMessages({
+  library(Seurat)
+  library(DoubletFinder)
+})
+
+rate    <- 0.1                  # expected doublet rate
+pcs     <- as.integer(1:15)      # fewer PCs to save memory
+pN      <- 0.15                  # fewer simulated doublets than default
+use_sct <- FALSE
+set.seed(1234)
+
+
+keep_assay <- DefaultAssay(seuratM)
+seuratM <- DietSeurat(
+  seuratM,
+  assays    = keep_assay,
+  dimreducs = intersect(c("pca","umap","tsne"), names(seuratM@reductions)),
+  graphs    = NULL,
+  counts    = TRUE,
+  data      = TRUE,
+  scale.data= FALSE
+)
+gc()
+
+md <- seuratM@meta.data
+keep <- !grepl("^(pANN|DF\\.classifications)($|_)", colnames(md))
+seuratM@meta.data <- md[, keep, drop = FALSE]
+
+
+sweep.res   <- paramSweep(seuratM, PCs = pcs, sct = use_sct)
+sweep.stats <- summarizeSweep(sweep.res, GT = FALSE)
+
+bcmvn <- find.pK(sweep.stats)
+if (!"BCmetric" %in% names(bcmvn) && "BCmvn" %in% names(bcmvn)) {
+  names(bcmvn)[names(bcmvn) == "BCmvn"] <- "BCmetric"
+}
+bcmvn$pK_num <- suppressWarnings(as.numeric(as.character(bcmvn$pK)))
+best.pK <- bcmvn$pK_num[ which.max(bcmvn$BCmetric) ]
+message("Best pK = ", best.pK)
+
+## expected doublets
+n_cells  <- ncol(seuratM)
+nExp_raw <- round(rate * n_cells)
+message("nExp_raw = ", nExp_raw)
+
+## use clusterName column here
+if (!"clusterName" %in% colnames(seuratM@meta.data)) {
+  stop("clusterName column not found in seuratM@meta.data")
+}
+clust <- as.factor(seuratM$clusterName)
+
+homotypic.prop <- modelHomotypic(clust)
+nExp_adj <- round(nExp_raw * (1 - homotypic.prop))
+message("Homotypic proportion = ", signif(homotypic.prop, 4),
+        "; nExp_adj = ", nExp_adj)
+
+gc()
+
+# Pass 1: create one pANN
+seuratM <- doubletFinder(
+  seuratM,
+  PCs = pcs,
+  pN  = pN,
+  pK  = best.pK,
+  nExp = nExp_raw,
+  sct  = use_sct
+)
+gc()
+
+# Confirm exactly one pANN
+pann_cols <- grep("^pANN", colnames(seuratM@meta.data), value = TRUE)
+if (length(pann_cols) != 1L) {
+  stop("Expected exactly 1 pANN column after pass 1; found ", length(pann_cols))
+}
+
+# Pass 2: reuse that pANN with adjusted nExp
+seuratM <- doubletFinder(
+  seuratM,
+  PCs        = pcs,
+  pN         = pN,
+  pK         = best.pK,
+  nExp       = nExp_adj,
+  reuse.pANN = pann_cols,
+  sct        = use_sct
+)
+gc()
+
+## Results
+df.cols <- grep("^DF\\.classifications", colnames(seuratM@meta.data), value = TRUE)
+final_col <- tail(df.cols, 1)
+message("Final DF column: ", final_col)
+print(table(seuratM@meta.data[[final_col]]))
+
+```
+```{r}
+# Locate the most recent DF.classifications* column
+df_col <- tail(grep("^DF\\.classifications", colnames(seuratM@meta.data), value = TRUE), 1)
+stopifnot(length(df_col) == 1)
+table(seuratM@meta.data[[df_col]])
+
+DimPlot(seuratM, reduction = "umap", group.by = df_col) +
+  ggplot2::ggtitle("Doublets on UMAP")
+
+
+
+
+
+```
+
+```{r}
+## 1) Identify the latest DF classification column
+#df_col <- tail(grep("^DF\\.classifications", colnames(seuratAM@meta.data), value = TRUE), 1)
+#stopifnot(length(df_col) == 1)
+
+## 2) Create a new object with only singlets
+#seuratAM_singlets <- subset(seuratAM, subset = .data[[df_col]] == "Singlet")
+
+## 3) Confirm counts
+#table(seuratAM@meta.data[[df_col]])
+#table(seuratAM_singlets@meta.data[[df_col]])
+
+#message("Removed ", ncol(seuratAM) - ncol(seuratAM_singlets), " doublets; ",
+       # ncol(seuratAM_singlets), " cells remain.")
+
+#seuratAM_singlets <- subset(seuratAM, subset = .data[[df_col]] == "Singlet")
+
+
+```
+
+```{r}
+df_col <- tail(grep("^DF\\.classifications", colnames(seuratM@meta.data), value = TRUE), 1)
+stopifnot(length(df_col) == 1)
+
+# Make a clean identity from the DF column
+seuratM$DF_class <- seuratM@meta.data[[df_col]]
+Seurat::Idents(seuratM) <- "DF_class"
+
+# Subset singlets by identity
+seuratM_singlets <- subset(seuratM, idents = "Singlet")
+
+# Check
+table(seuratM_singlets$DF_class)
+
+```
+```{r}
+DimPlot(seuratAM, reduction = "umap",label = T, cols = colclusterName, raster = T, repel = T)
+
+Idents(seuratAM_singlets) <- seuratAM_singlets$clusterName
+DimPlot(seuratAM_singlets, reduction = "umap",label = T, cols = colclusterName, raster = T, repel = T)
+DimPlot(seuratAM_singlets, reduction = "umap",label = F, cols = colclusterName, raster = T, repel = T)
+
+df_col <- tail(grep("^DF\\.classifications", colnames(seuratAM@meta.data), value = TRUE), 1)
+stopifnot(length(df_col) == 1)
+
+# Show counts of Singlets vs. Doublets per cluster
+tab <- table(seuratAM@meta.data[[df_col]], seuratAM@meta.data$clusterName)
+tab
+
+prop_tab <- prop.table(tab, margin = 2) * 100
+round(prop_tab, 1)
+
+
+
+df_plot <- seuratAM@meta.data
+df_plot$DF_call <- df_plot[[df_col]]
+
+ggplot(df_plot, aes(x = clusterName, fill = DF_call)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  ylab("Fraction of cells") +
+  xlab("clusterName") +
+  ggtitle("Doublet fraction per cluster (DoubletFinder)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+seuratAM <- seuratAM_singlets
+
+```
+
+```{r}
+
+seuratAM <- subset(seuratAM, subset = !clusterName %in% c("Int", "Fb3", "VSMC2", "Adipocytes", "TRM3"))
+
+DimPlot(seuratAM, reduction = "umap", group.by = "clusterName", label = TRUE, repel = TRUE, cols = colclusterName)
+
+DimPlot(seuratAM, reduction = "umap", group.by = "clusterName", label = FALSE, repel = TRUE, cols = colclusterName)
+
+table(seuratAM$clusterName)
+
+
+Idents(seuratAM) <- seuratAM$clusterName
+DimPlot(seuratAM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName, raster = T)
+#pdf("umap_clusters_label_AM_no doublet.pdf", width = 8, height = 6)  
+#DimPlot(
+ # seuratAM, 
+  #reduction = "umap", 
+  #label = TRUE, 
+  #repel = TRUE, 
+  #cols = colclusterName,  
+  #raster = TRUE)
+#dev.off()
+
+```
+```{r}
+
+
+#saveRDS(seuratAM, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/seuratAM_noDoublets_annotated_28.08.2025.rds")
+
+```
+

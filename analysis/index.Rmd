@@ -1,0 +1,48 @@
+---
+title: "Home"
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    toc: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+## EMB snRNAseq
+
+### EMB QC and metadata
+[link](QC_and_metadata.html)
+
+### EMB snRNAseq - relative abundances, cell counts, T cell and Inflammation status categorization
+[link](Relative_abundances_cellcounts_Tcell_groups.html)
+
+### EMB snRNAseq - cell annotation all clusters with FeaturePlots 
+[link](Markers_Cellannotation_Feature_Plots_EMB_v2.html)
+
+### EMB snRNAseq - cell annotation immune cell clusters with Feature Plots
+[link](PBMCs_snRNAseq_Immune_cells_GSEA_annotation.html)
+
+### EMB MILO R Plot Differential abundance and neighbourhood immune cells
+
+
+### EMB snRNAseq - GREM2 expression all cell clusters
+
+
+### EMB snRNAseq - GREM2 expression immune cell clusters
+
+
+### EMB - DE Genes accross all cell clusters Inflamed vs. Non-inflamed - Volcano Plots
+[link](EMB_DEGenes_snRNAseq_Volcanov2.html)
+
+
+
+## PBMCs scRNAseq 
+
+### PBMCs cell annotation with Feature Plots and Hallmark GSEA
+
+[link](PBMCs_cell_annotation_markers_and_FeaturePlots_v.1.3.html)
+
+
+## TCRM immune cell isolation (pending)
+

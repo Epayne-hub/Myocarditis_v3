@@ -1,0 +1,566 @@
+---
+title: "Doublet finder EMBs snRNAseq"
+author: "EP"
+date: "22.02.2026"
+output: html_document
+---
+
+```{r setup, include = FALSE, fig.path = "custom/path", warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+library(BiocParallel)
+#library(scDblFinder)
+library(futile.logger)
+
+#BiocManager::install("scDblFinder")
+#remove.packages("futile.logger")
+#BiocManager::install("futile.logger")
+
+#Using scDblFinder (https://github.com/plger/scDblFinder) as this approach is outperforming DoubletFinder. Original #Paper Publikation: https://f1000research.com/articles/10-979/v2
+
+```
+
+
+```{r}
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_20.02.26_filt.rds")
+
+
+#seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 #Myocarditis/data/Merged/Myocarditis_all_files_layers_20.02.26_filt_annotated.rds")
+
+seuratM <- readRDS("~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_all_files_layers_22.02.26_filt_annotated.rds")
+
+
+#"~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/Myocarditis_snRNAseq_EMBs_onlyAM_22.02.2026")
+
+table(seuratM$orig.ident)
+table(seuratM$clusterName)
+
+
+```
+
+
+## Only AM
+```{r}
+seuratM <- subset(seuratM, pat_sub == "AM")
+DimPlot(seuratM, reduction = "umap")
+```
+
+
+```{r }
+
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+
+seuratM$clusterName <- "clusterName"
+Idents(seuratM) <- seuratM$clusterName
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "0" )] <- "Fb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "1" )] <- "PeriFb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "2" )] <- "BEC1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "3" )] <- "CM1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "4" )] <- "ResMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "5" )] <- "Lymphocytes"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "6" )] <- "inflMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "7" )] <- "VSMC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "8" )] <- "LEC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "9" )] <- "CM2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "10" )] <- "NC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "11" )] <- "Autonomic NS"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "12" )] <- "Fb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "13" )] <- "BEC2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "14" )] <- "PeriFb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.15 %in% "15" )] <- "AdipoC"
+
+
+#colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#fff7bc", "#43a2ca", #"#355C7D","#3288BD","#a6bddb", "#a8ddb5", "#01665e", "#66C2A5", "#e5f5e0","#ece2f0","#253494", "#BEAED4", #"#67001f","#fde0dd","#B45B5C","#fa9fb5","#D53E4F")
+
+
+colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#43a2ca", "#355C7D","#3288BD","#a6bddb","#BEAED4", "#a8ddb5", "#01665e", "#66C2A5","#253494", "#fde0dd","#fa9fb5","#D53E4F")
+
+
+names(colclusterName) <-c("CM1", "CM2","Fb1", "Fb2", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "LEC", "Autonomic NS", "NC", "AdipoC", "ResMph","inflMph", "Lymphocytes")
+
+#colpat_sub<- c("#dfc27d","#BE3144","#355C7D", "#779d8d")
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CM1", "CM2","Fb1", "Fb2", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "LEC", "Autonomic NS","NC", "AdipoC", "ResMph","inflMph", "Lymphocytes"))
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE)
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName)
+
+#table(seuratM$pat_sub)
+
+table(seuratM$orig.ident)
+
+table(seuratM$clusterName)
+
+
+```
+
+
+```{r}
+table(seuratM$sample, seuratM$clusterName)
+```
+
+
+```{r}
+#saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/Myocarditis_snRNAseq_EMBs_onlyAM_22.02.2026")
+
+```
+
+
+```{r}
+sce <- as.SingleCellExperiment(seuratM)
+```
+
+
+```{r, include = F}
+## How does DblFinder work:
+
+# Creating "fake" Doublets: scDblFinder randomly picks two real cells from the dataset and mathematically merges their RNA counts together. It repeats this thousands of times to create a massive database of artificial doublets. It knows for an absolute fact that these artificial cells are doublets.
+
+## It maps everything together and assigns a "Score" Next, it plots your real cells and its artificial doublets on the same mathematical map (PCA space).It looks at every single real cell and checks its neighborhood.
+
+## The Score Calculation: If a real cell is surrounded mostly by real cells, it gets a score close to 0. If a real cell is sitting in a neighborhood completely surrounded by the artificial doublets, it gets a score closer to 1.0.
+
+##It calculates the "Homotypic Penalty" (The clever math). By telling the algorithm to expect a 10% doublet rate (dbr = 0.1). If you have 10,000 cells, the target is 1,000 doublets. However, scDblFinder knows not all doublets are visible.
+
+## Heterotypic doublet: If a T-cell fuses with a Macrophage, it creates a weird hybrid cell (Heterotypic doublet). These get very high scores (e.g., 0.6 to 0.9).
+
+## If a T-cell fuses with another T-cell, it just looks like a slightly larger T-cell (Homotypic doublet). These get very low scores (e.g., 0.1 to 0.3) and are virtually impossible to separate from singlets.
+
+##The algorithm uses the sizes of your clusters to calculate probability. It might say: "Based on the cell types in ##this sample, 20% of the doublets will probably be T-cell/T-cell or B-cell/B-cell fusions."
+
+# Total expected doublets = 1,000: Expected invisible (homotypic) doublets = 200; Expected visible (heterotypic) doublets = 800
+
+## Finding the Threshold: DblFinder takes all of the real cells and sorts them from the highest score to the lowest score. It knows it is only looking for 800 visible heterotypic doublets. It counts down the ranked list: 1, 2, 3... all the way to cell number 800. It looks at the score of that 800th cell. Let's say cell #800 has a score of 0.45. This would then be the threshold
+
+```
+
+
+
+```{r}
+#BiocParallel Parameter speed up process
+library(BiocParallel)
+library(scDblFinder)
+
+## default doublet rate calculates 1% per 1000 recovered cells, however if chip is overloaded rate should be increased, dbr = 0.1 (10% manually set)
+
+seed <- 1234
+bp <- MulticoreParam(3, RNGseed=1234)
+sce <- scDblFinder(sce, samples = "sample", BPPARAM = bp, dbr = 0.1 )
+table(sce$scDblFinder.class)
+
+#prop.table(table(seuratM$scDblFinder.class)) * 100
+
+#By default, scDblFinder does not force a flat percentage of doublets. Instead, it estimates the expected doublet #rate based on the standard 10x Genomics loading rate, which is roughly 1% doublets for every 1,000 cells recovered.
+
+table(sce$sample, sce$scDblFinder.class)
+
+```
+
+
+
+
+
+
+```{r}
+
+#add column to metadata
+meta_scdblfinder <- sce@colData@listData%>% as.data.frame()%>%
+  dplyr::select(starts_with("scDblFinder"))%>%
+  dplyr::select(scDblFinder.class, scDblFinder.score)
+rownames(meta_scdblfinder) <- sce@colData@rownames
+
+seuratM <- AddMetaData(seuratM, metadata = meta_scdblfinder)
+
+
+# doublet proportions by cluster
+doublet_summary <- seuratM@meta.data %>%
+  group_by(clusterName) %>%
+  summarize(
+    total_cells = n(),
+    n_doublets = sum(scDblFinder.class == "doublet"),
+    prop_doublets = n_doublets / total_cells)
+
+doublet_summary
+
+
+```
+
+```{r, echo = F}
+
+
+#pdf(file.path(output_path,"Cluster Doublet Summary.pdf"), height = 8, width = 10)
+doublets_summary <- seuratM@meta.data%>%
+  group_by(clusterName, scDblFinder.class)%>%
+  summarise(total_count=n(), .groups="drop")%>%as.data.frame()%>%ungroup()%>%
+              group_by(clusterName)%>%
+              mutate(countT=sum(total_count))%>%
+              group_by(scDblFinder.class, .add=TRUE)%>%
+              mutate(percent=paste0(round(100*total_count/countT,2),"%"))%>%
+              dplyr::select(-countT)
+
+doublet_summary <- seuratM@meta.data %>%
+  group_by(clusterName) %>%
+  summarize(
+    total_cells = n(),
+    n_doublets = sum(scDblFinder.class == "doublet"),
+    prop_doublets = n_doublets / total_cells)
+
+
+#dev.off
+```
+
+```{r}
+doublets_summary
+```
+
+
+
+
+```{r}
+
+#  metadata and calculate the median RNA and Genes per cluster
+rna_counts_table <- seuratM@meta.data %>%
+  group_by(clusterName) %>%
+  summarize(
+    Median_RNA_Count = median(nCount_RNA),
+    Mean_RNA_Count = mean(nCount_RNA),
+    Median_Genes_Expressed = median(nFeature_RNA)) %>%
+  as.data.frame()
+
+print(rna_counts_table)
+
+VlnPlot(seuratM, group.by = "clusterName", split.by = "scDblFinder.class",
+        features = c("nFeature_RNA", "nCount_RNA", "subsets_Mt_percent"),
+        ncol=3, pt.size=0) + theme(legend.position = "right")
+```
+
+
+```{r, include = F}
+## Interpretation RNA counts: Fb2 Cluster
+
+
+#If a physical droplet accidentally captured one normal Fibroblast (Fb1) and one Resident Macrophage (ResMph), we would expect their RNA counts to add up:
+
+#Fb1 Median RNA: 5,818
+
+#ResMph Median RNA: 4,108
+
+#Expected Doublet RNA: 5,818 + 4,108 = 9,926
+
+##Fb2 Mean RNA: 9,807 (and Median is 8,450).  expected  (9,926) and  actual Fb2 mean (9,807) --> droplet collision
+
+##The Number of Unique Genes (Median Genes) When two cells merge, the number of unique genes won't be a perfect sum #(because both cells share basic housekeeping genes like ribosomal or mitochondrial genes). Instead, you expect the #base cell (Fb1) plus a few hundred new unique markers from the second cell.
+
+#Fb1 Genes: 2,720
+
+#ResMph Genes: 2,191
+
+#Expected Doublet Genes: Somewhere between 3,000 and 4,000 (accounting for overlapping housekeeping genes).
+##Fb2 Genes: 3,683: Fb2 expresses about 960 more genes than a normal Fibroblast. Those extra genes are exactly the unique macrophage markers (like CD14, C1QA, CD68) that got trapped in the same droplet.
+
+## If I want to keep the cluster
+##  seuratSinglet <- subset(seuratM, subset = scDblFinder.class == "singlet" | clusterName == "Fb2")
+```
+
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$scDblFinder.class
+colsDblFinder <- c("grey", "red")
+DimPlot(seuratM, reduction = "umap", pt.size= 0.1, cols= colsDblFinder, raster = FALSE)
+
+```
+
+```{r, include = F}
+Idents(seuratM) <-seuratM$scDblFinder.score>0.3
+
+DimPlot(seuratM, reduction = "umap", pt.size= 0.1, cols= colsDblFinder, raster=FALSE) +
+  ggtitle("DblFinder Score >0.3") + theme(plot.title = element_text(hjust = 0.5))
+
+
+```
+
+
+```{r, include = F}
+library(future)
+
+parallel::detectCores()
+plan()
+getOption("future.globals.maxSize")
+
+plan(multisession, workers = 12)
+options(future.globals.maxSize = 80 * 1024^3)
+
+
+```
+
+
+
+
+```{r}
+
+seuratSinglet <- subset(seuratM, subset = scDblFinder.class == "singlet")
+
+
+```
+
+# 1. Standard normalize the RNA assay (finding markers)
+seuratSinglet <- NormalizeData(seuratSinglet, assay = "RNA")
+
+# 2. SCTransform (for PCA, UMAP, and Clustering)
+seuratSinglet <- SCTransform(seuratSinglet, assay = "RNA", vst.flavor = "v2")
+
+# 3.PCA and UMAP (automatically uses SCT data)
+seuratSinglet <- RunPCA(seuratSinglet)
+seuratSinglet <- RunUMAP(seuratSinglet, dims = 1:20)
+
+
+
+
+
+
+```{r}
+## Normalization and Scaling
+seuratSinglet <- NormalizeData(seuratSinglet, assay = "RNA")
+
+
+seuratSinglet <- FindVariableFeatures(seuratSinglet)
+seuratSinglet <- ScaleData(seuratSinglet, verbose = TRUE)
+
+#seuratSinglet <- SCTransform(seuratSinglet, assay = "RNA", vst.flavor = "v2")
+
+
+seuratSinglet <- RunPCA(seuratSinglet, npcs = 30, verbose = FALSE)
+seuratSinglet <- RunUMAP(seuratSinglet, dims = 1:20)
+seuratSinglet <- RunTSNE(seuratSinglet, reduction = "pca", dims = 1:20)
+
+ElbowPlot(seuratSinglet, ndims = 30) +
+ggplot2::geom_vline(xintercept = 20, linetype = "dashed", color = "red", linewidth = 1)
+
+
+seuratSinglet <- FindNeighbors(seuratSinglet, reduction = "pca", dims = 1:20)
+
+res <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 0.8)
+for (i in 1:length(res)) {
+  seuratSinglet <- FindClusters(seuratSinglet, resolution = res[i], random.seed = 1234)
+}
+
+
+
+```
+
+
+
+
+
+```{r}
+
+seuratSinglet <- subset(seuratSinglet, pat_sub == "AM")
+DimPlot(seuratM, reduction = "umap")
+DimPlot(seuratSinglet, reduction = "umap")
+
+table(seuratSinglet$orig.ident)
+
+
+```
+
+
+
+
+
+```{r}
+
+sce2 <- as.SingleCellExperiment(seuratSinglet)
+#Set seed to ensure reproducibility
+seed <- 1234
+bp <- MulticoreParam(3, RNGseed=1234)
+sce2 <- scDblFinder(sce2, samples = "sample", BPPARAM = bp)
+table(sce2$scDblFinder.class)
+## 
+## singlet doublet 
+##  
+Idents(seuratSinglet) <- seuratSinglet$clusterName
+DimPlot(seuratSinglet, reduction = "umap", pt.size = 0.1, raster=FALSE) 
+
+table(seuratSinglet$orig.ident)
+
+doublets_summary <- seuratSinglet@meta.data%>%
+  group_by(clusterName, scDblFinder.class)%>%
+  summarise(total_count=n(), .groups="drop")%>%as.data.frame()%>%ungroup()%>%
+              group_by(clusterName)%>%
+              mutate(countT=sum(total_count))%>%
+              group_by(scDblFinder.class, .add=TRUE)%>%
+              mutate(percent=paste0(round(100*total_count/countT,2),"%"))%>%
+              dplyr::select(-countT)
+
+doublet_summary <- seuratSinglet@meta.data %>%
+  group_by(clusterName) %>%
+  summarize(
+    total_cells = n(),
+    n_doublets = sum(scDblFinder.class == "doublet"),
+    prop_doublets = n_doublets / total_cells)
+
+doublet_summary
+```
+
+```{r}
+
+
+seuratSinglet <- subset(seuratSinglet, subset = scDblFinder.class == "singlet")
+
+
+```
+
+# 1. Standard normalize the RNA assay (finding markers)
+seuratSinglet <- NormalizeData(seuratSinglet, assay = "RNA")
+
+# 2. SCTransform (for PCA, UMAP, and Clustering)
+seuratSinglet <- SCTransform(seuratSinglet, assay = "RNA", vst.flavor = "v2")
+
+# 3.PCA and UMAP (automatically uses SCT data)
+seuratSinglet <- RunPCA(seuratSinglet)
+seuratSinglet <- RunUMAP(seuratSinglet, dims = 1:20)
+
+
+
+
+```{r}
+
+seuratSinglet <- subset(seuratSinglet, subset = !clusterName %in% c("Fb2", "CM2", "AdipoC"))
+
+DimPlot(seuratSinglet, reduction = "umap", group.by = "clusterName", label = TRUE, repel = TRUE, cols = colclusterName)
+
+```
+
+```{r}
+options(future.globals.maxSize = 10000 * 1024^2)
+
+## Normalization and Scaling
+seuratSinglet <- NormalizeData(seuratSinglet, assay = "RNA")
+
+
+seuratSinglet <- FindVariableFeatures(seuratSinglet)
+seuratSinglet <- ScaleData(seuratSinglet, verbose = TRUE)
+
+#seuratSinglet <- SCTransform(seuratSinglet, assay = "RNA", vst.flavor = "v2")
+
+
+seuratSinglet <- RunPCA(seuratSinglet, npcs = 30, verbose = FALSE)
+seuratSinglet <- RunUMAP(seuratSinglet, dims = 1:20)
+seuratSinglet <- RunTSNE(seuratSinglet, reduction = "pca", dims = 1:20)
+
+ElbowPlot(seuratSinglet, ndims = 30) +
+ggplot2::geom_vline(xintercept = 20, linetype = "dashed", color = "red", linewidth = 1)
+
+
+seuratSinglet <- FindNeighbors(seuratSinglet, reduction = "pca", dims = 1:20)
+
+res <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 0.8)
+for (i in 1:length(res)) {
+  seuratSinglet <- FindClusters(seuratSinglet, resolution = res[i], random.seed = 1234)
+}
+
+
+```
+```{r}
+DimPlot(seuratSinglet, reduction = "umap", group.by = "clusterName", label = TRUE, repel = TRUE, cols = colclusterName)
+```
+
+```{r}
+DimPlot(seuratSinglet, reduction = "umap", group.by = "clusterName", label = TRUE, repel = TRUE, cols = colclusterName)
+```
+
+
+
+```{r}
+
+options(future.globals.maxSize = 10000 * 1024^2)
+
+# Normalization on the RNA assay for gene plotting and FindMarkers
+seuratSinglet <- NormalizeData(seuratSinglet, assay = "RNA")
+
+# SC Transform calculates its own variable features and scales automatically
+seuratSinglet <- SCTransform(seuratSinglet, assay = "RNA", vst.flavor = "v2", verbose = TRUE)
+
+seuratSinglet <- RunPCA(seuratSinglet, npcs = 30, verbose = FALSE)
+seuratSinglet <- RunTSNE(seuratSinglet, reduction = "pca", dims = 1:20)
+seuratSinglet <- RunUMAP(seuratSinglet, reduction = "pca", dims = 1:20)
+
+seuratSinglet <- FindNeighbors(seuratSinglet, reduction = "pca", dims = 1:20)
+
+res <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 0.8)
+for (i in 1:length(res)) {
+  seuratSinglet <- FindClusters(seuratSinglet, resolution = res[i], random.seed = 1234)
+}
+```
+
+```{r}
+
+table(seuratSinglet$orig.ident)
+seuratM <- seuratSinglet
+
+table(seuratM$orig.ident)
+```
+
+
+
+```{r}
+saveRDS(seuratSinglet, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_all_files_layers_22.02.26_filt_annotated_doubletsremovedv5_SCtransform_scaling_AM_only.rds")
+
+
+```
+
+```{r}
+
+saveRDS(seuratSinglet, file="~/Documents/01 Projects/00 snRNAseq/00 Myocarditis/data/Merged/Myocarditis_all_files_layers_22.02.26_filt_annotated_doubletsremovedv5_normal_scaling_AM_only.rds")
+
+```
+
+
+
+

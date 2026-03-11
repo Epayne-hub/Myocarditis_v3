@@ -1,0 +1,1589 @@
+---
+title: "Merging scRNAseq PBMCs"
+author: "EP"
+date: "22.02.2026"
+output: html_document
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+table(seuratM$orig.ident)
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+library(reshape2)
+library(tidyr)
+
+#devtools::install_github("Ludewig-Lab/ImmunoLogic")
+
+
+```
+
+
+
+
+```{r}
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_22.02.2026")
+
+table(seuratM$orig.ident)
+
+```
+
+
+
+```{r}
+### load files AM and merge
+basedir <- "~/Documents/GitHub/Myocarditis EMB Project v3/data/scRNAseq PBMCs"
+fileNamList <- list.files(path = basedir)
+
+
+for(i in 1:length(fileNamList)){
+  seuratS <- readRDS(paste0(basedir,"/", fileNamList[i]))
+  seuratS@assays$RNA@layers$scale.data <- NULL ## remove scale data slot to reduce size
+  if(exists("seuratM")){
+    seuratM <- merge(x = seuratM, y = seuratS)
+    cat("Merged", i, "of", length(fileNamList), "files - Totalcells:", ncol(seuratM), "\n")
+  }else{
+    seuratM <- seuratS
+    cat("Initialized with first Seurat object:")
+  }
+}
+
+##
+#
+remove(seuratS)
+table(seuratM$dataset)
+table(seuratM$orig.ident)
+
+###
+
+```
+
+
+```{r}
+
+seuratM <- JoinLayers(seuratM)
+
+```
+
+
+```{r}
+#saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq #PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_raw_22.02.2026")
+
+
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_22.02.2026.rds")
+
+
+```
+
+```{r, echo = F}
+
+## match Patient_ID and seurat no
+
+#Immpath_AM2 <- c("")
+Immpath_AM10 <- c("396321_3-3_20250820_Hu_PBMC_Immpath_AM10_nonstim", "409891_07-7_20260126_Hu_PBMC_Immpath_AM10_12_v4")
+Immpath_AM12 <- c("396321_5-5_20250820_Hu_PBMC_Immpath_AM12_nonstim")
+#Immpath_AM18 <- c("")
+Immpath_AM27 <- c("409891_01-1_20260126_Hu_PBMC_Immpath_AM27_0_v4", "409891_08-8_20260126_Hu_PBMC_Immpath_AM27_12_v4")
+Immpath_AM35 <- c("409891_02-2_20260126_Hu_PBMC_Immpath_AM35_0_v4", "409891_09-9_20260126_Hu_PBMC_Immpath_AM35_12_v4")
+#Immpath_AM37 <- c("")
+#Immpath_AM47 <- c("")
+# Immpath_AM54 <- c("")
+Immpath_AM59 <- c("409891_03-3_20260126_Hu_PBMC_Immpath_AM59_0_v4","409891_10-10_20260126_Hu_PBMC_Immpath_AM59_12_v4")
+Immpath_AM61 <- c("409891_04-4_20260126_Hu_PBMC_Immpath_AM61_0_v4")
+Immpath_AM63 <- c("409891_05-5_20260126_Hu_PBMC_Immpath_AM63_0_v4")
+#Immpath_AM77 <- c("")
+Immpath_AM84 <- c("409891_06-6_20260126_Hu_PBMC_Immpath_AM84_0_v4")
+#Immpath_AM85 <- c("")
+#Immpath_AM86 <- c("")
+
+```
+
+```{r}
+## Name samples sequentially according to snRNAseq
+seuratM$patient <- "pat_nr"
+
+
+## Acute Myocarditis
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM2)] <- "AM 01"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM10)] <- "AM 02"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM12)] <- "AM 03"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM18)] <- "AM 04"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM27)] <- "AM 05"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM35)] <- "AM 07"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM37)] <- "AM 08"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM47)] <- "AM 09"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM54)] <- "AM 19"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM59)] <- "AM 20"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM61)] <- "AM 21"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM63)] <- "AM 22"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM77)] <- "AM 23"
+seuratM$patient[which(seuratM$dataset %in% Immpath_AM84)] <- "AM 24"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM85)] <- "AM 24"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM86)] <- "AM 25"
+#seuratM$patient[which(seuratM$dataset %in% Immpath_AM98)] <- "AM 26"
+
+table(seuratM$patient)
+
+```
+
+
+```{r}
+seuratM$sample <- "sample"
+
+## Acute Myocarditis (AM Cohort)
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM2)] <- "ZH-Immpath-AM-02"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM10)] <- "ZH-Immpath-AM-10"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM12)] <- "ZH-Immpath-AM-12"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM18)] <- "ZH-Immpath-AM-18"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM27)] <- "ZH-Immpath-AM-27"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM35)] <- "ZH-Immpath-AM-35"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM37)] <- "ZH-Immpath-AM-37"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM47)] <- "ZH-Immpath-AM-47"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM54)] <- "ZH-Immpath-AM-54"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM59)] <- "ZH-Immpath-AM-59"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM61)] <- "ZH-Immpath-AM-61"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM63)] <- "ZH-Immpath-AM-63"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM77)] <- "ZH-Immpath-AM-77"
+seuratM$sample[which(seuratM$dataset %in% Immpath_AM84)] <- "ZH-Immpath-AM-84"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM85)] <- "ZH-Immpath-AM-85"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM86)] <- "ZH-Immpath-AM-86"
+#seuratM$sample[which(seuratM$dataset %in% Immpath_AM98)] <- "ZH-Immpath-AM-98"
+
+table(seuratM$sample)
+
+```
+
+
+```{r, echo = F}
+
+## match Patient_ID and seurat no
+## Baseline 0m
+
+#Immpath_AM2_0 <- c("")
+Immpath_AM10_0 <- c("396321_3-3_20250820_Hu_PBMC_Immpath_AM10_nonstim")
+Immpath_AM12_0 <- c("396321_5-5_20250820_Hu_PBMC_Immpath_AM12_nonstim")
+#Immpath_AM18 <- c("")
+Immpath_AM27_0 <- c("409891_01-1_20260126_Hu_PBMC_Immpath_AM27_0_v4")
+Immpath_AM35_0 <- c("409891_02-2_20260126_Hu_PBMC_Immpath_AM35_0_v4")
+#Immpath_AM37_0 <- c("")
+#Immpath_AM47_0 <- c("")
+# Immpath_AM54_0 <- c("")
+Immpath_AM59_0 <- c("409891_03-3_20260126_Hu_PBMC_Immpath_AM59_0_v4")
+Immpath_AM61_0 <- c("409891_04-4_20260126_Hu_PBMC_Immpath_AM61_0_v4")
+Immpath_AM63_0 <- c("409891_05-5_20260126_Hu_PBMC_Immpath_AM63_0_v4")
+#Immpath_AM77 <- c("")
+Immpath_AM84_0 <- c("409891_06-6_20260126_Hu_PBMC_Immpath_AM84_0_v4")
+#Immpath_AM85 <- c("")
+#Immpath_AM86 <- c("")
+
+## 12 month FU
+Immpath_AM10_12 <- c("409891_07-7_20260126_Hu_PBMC_Immpath_AM10_12_v4")
+Immpath_AM27_12 <- c("409891_08-8_20260126_Hu_PBMC_Immpath_AM27_12_v4")
+Immpath_AM35_12 <- c("409891_09-9_20260126_Hu_PBMC_Immpath_AM35_12_v4")
+Immpath_AM59_12 <- c("409891_10-10_20260126_Hu_PBMC_Immpath_AM59_12_v4")
+
+
+seuratM$ID <- "ID"
+
+## Acute Myocarditis (AM Cohort)
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM2)] <- "ZH-Immpath-AM-02/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM10_0)] <- "ZH-Immpath-AM-10/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM12_0)] <- "ZH-Immpath-AM-12/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM18)] <- "ZH-Immpath-AM-18/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM27_0)] <- "ZH-Immpath-AM-27/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM35_0)] <- "ZH-Immpath-AM-35/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM37)] <- "ZH-Immpath-AM-37/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM47)] <- "ZH-Immpath-AM-47/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM54)] <- "ZH-Immpath-AM-54/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM59_0)] <- "ZH-Immpath-AM-59/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM61_0)] <- "ZH-Immpath-AM-61/0"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM63_0)] <- "ZH-Immpath-AM-63/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM77)] <- "ZH-Immpath-AM-77"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM84_0)] <- "ZH-Immpath-AM-84/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM85)] <- "ZH-Immpath-AM-85/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM86)] <- "ZH-Immpath-AM-86/0"
+#seuratM$ID[which(seuratM$dataset %in% Immpath_AM98)] <- "ZH-Immpath-AM-98/0"
+
+
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM10_12)] <- "ZH-Immpath-AM-10/12"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM27_12)] <- "ZH-Immpath-AM-27/12"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM35_12)] <- "ZH-Immpath-AM-35/12"
+seuratM$ID[which(seuratM$dataset %in% Immpath_AM59_12)] <- "ZH-Immpath-AM-59/12"
+
+table(seuratM$ID)
+
+```
+
+
+
+
+```{r}
+
+Baseline <- c("396321_3-3_20250820_Hu_PBMC_Immpath_AM10_nonstim",
+              "396321_5-5_20250820_Hu_PBMC_Immpath_AM12_nonstim",
+              "409891_01-1_20260126_Hu_PBMC_Immpath_AM27_0_v4",
+              "409891_02-2_20260126_Hu_PBMC_Immpath_AM35_0_v4",
+              "409891_03-3_20260126_Hu_PBMC_Immpath_AM59_0_v4",
+              "409891_04-4_20260126_Hu_PBMC_Immpath_AM61_0_v4",
+              "409891_05-5_20260126_Hu_PBMC_Immpath_AM63_0_v4",
+              "409891_06-6_20260126_Hu_PBMC_Immpath_AM84_0_v4")
+
+twelvemFU <- c("409891_07-7_20260126_Hu_PBMC_Immpath_AM10_12_v4",
+               "409891_08-8_20260126_Hu_PBMC_Immpath_AM27_12_v4",
+               "409891_09-9_20260126_Hu_PBMC_Immpath_AM35_12_v4",
+               "409891_10-10_20260126_Hu_PBMC_Immpath_AM59_12_v4")
+
+seuratM$visit <- "Visit"
+seuratM$visit[which(seuratM$dataset %in% Baseline)] <- "0m"
+seuratM$visit[which(seuratM$dataset %in% twelvemFU)] <- "12m"
+
+table(seuratM$visit)
+
+cell_count <- data.frame(table(seuratM$visit))
+colnames(cell_count) <- c("Visit", "Freq")
+hsize <- 1.5
+
+ggplot(cell_count, aes(x = hsize, y = Freq, fill = Visit)) +
+  #scale_fill_manual(values = colpat2) +
+  geom_col(color = "white") +
+  coord_polar(theta = "y") +
+  xlim(c(0.2, hsize + 0.5)) +
+  theme_void() +
+  ggtitle("cell number") +
+  theme(plot.title = element_text(hjust = 0.5, size = 15)) +
+  geom_text(aes(label = Freq), position = position_stack(vjust = 0.5))
+
+```
+
+
+
+
+```{r, include = F}
+
+
+female <- 
+  
+male <- 
+
+seuratM$sex <- "sex"
+seuratM$sex[which(seuratM$dataset %in% female)] <- "female"
+seuratM$sex[which(seuratM$dataset %in% male)] <- "male"
+
+```
+
+
+
+## QC RNA metadata
+```{r}
+##total is the sum of all counts while, detected means the number of different genes found
+
+library(ggrepel)
+library(dplyr)
+library(geomtextpath)
+
+meta.data <- seuratM@meta.data
+
+#View(meta.data)
+
+
+
+# Density plot total counts, compare means and median
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = ID, fill = ID)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 300) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(ID) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 1000),  
+    aes(x = total_median, y = 0, label = ID),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right") +
+  labs(title = "Density Plot of Total Counts by Sample ID")
+
+# Density plot for detected counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = ID, fill = ID)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(ID) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 1000),  
+    aes(x = detected_median, y = 0, label = ID),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black") +
+  labs(title = "Density Plot of Detected Counts by Sample ID")
+
+list(ptotalpat, pdetectedpat)
+
+View(meta.data)
+```
+
+
+```{r Perform QC}
+
+ptotalpat <- ggplot(data = meta.data, aes(x = total, color = sample, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(sample) %>%
+      summarise(total_median = median(total)) %>%
+      filter(total_median < 500),  
+    aes(x = total_median, y = 0, label = sample),  
+    size = 3, nudge_y = 2, segment.color = NA, hjust = "right"  
+  ) +
+  labs(title = "Density Plot of Total Counts by Patient")
+
+ptotalpat
+
+# Density plot for detected counts
+pdetectedpat <- ggplot(data = meta.data, aes(x = detected, color = sample, fill = sample)) +
+  geom_density(alpha = 0.2) +
+  theme_classic() +
+  scale_x_log10() +
+  ylab("Density") +
+  geom_vline(xintercept = 500) +  
+  geom_text_repel(
+    data = meta.data %>% group_by(sample) %>%
+      summarise(detected_median = median(detected)) %>%
+      filter(detected_median < 500),  
+    aes(x = detected_median, y = 0, label = sample),  
+    size = 3, nudge_y = 2,segment.color = NA, hjust = "middle", color = "black"  
+  ) +
+  labs(title = "Density Plot of Detected Counts by Patient")
+
+list(ptotalpat, pdetectedpat)
+
+
+```
+
+```{r, include = F}
+
+seuratM[["percent.mt"]] <- PercentageFeatureSet(seuratM, pattern = "^MT-")
+VlnPlot(seuratM, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"))
+
+```
+## Scale and Dimensionality Reduction
+```{r Scale and perform dimension reduction}
+
+
+#Run seurat
+seuratM <- NormalizeData (object = seuratM)
+seuratM <- FindVariableFeatures(object = seuratM)
+seuratM <- ScaleData(object = seuratM, verbose = TRUE)
+seuratM <- RunPCA(object=seuratM, npcs = 30, verbose = FALSE)
+
+ElbowPlot(seuratM, ndims = 30) +
+  ggplot2::geom_vline(xintercept = 25, linetype = "dashed", color = "red", linewidth = 1)
+
+seuratM <- RunTSNE(object=seuratM, reduction="pca", dims = 1:20)
+seuratM <- RunUMAP(object=seuratM, reduction="pca", dims = 1:20)
+seuratM <- FindNeighbors(object = seuratM, reduction = "pca", dims= 1:20)
+
+
+res <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.6, 0.8)
+for (i in 1:length(res)) {
+  seuratM <- FindClusters(object = seuratM, resolution = res[i], random.seed = 1234)
+}
+
+```
+
+```{r}
+
+#saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq #PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_22.02.2026")
+
+```
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.1
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.2
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.3
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.4
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.6
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.8
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+
+```
+
+```{r, echo = T}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+levels(seuratM)
+markers <- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+
+markers <- markers %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(markers)
+
+
+```
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+FeaturePlot(seuratM, features = get_full_gene_name("CD3E",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD3D",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD3G",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000010610.CD4", pt.size = 3, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD8A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000172116.CD8B", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD40L",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Tfh
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD28",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000163600.ICOS", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CCR7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("SELL",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IFNG",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TNF",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD44",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("FOXP3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000178562.CD28", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+library(Nebulosa)
+
+
+gene <- "ENSG00000180875.GREM2"
+
+
+expr_matrix <- LayerData(seuratM, layer = "data")
+
+
+target_expression <- as.numeric(expr_matrix[gene, ])
+
+library(ggplot2)
+library(viridis)
+
+
+plot_df <- as.data.frame(Embeddings(seuratM, reduction = "umap"))
+
+
+plot_df$Expression <- target_expression
+
+# --> positive cells are overplotted on non positive cells, # higher alpha/size for rare genes
+plot_df <- plot_df[order(plot_df$Expression), ]
+
+# 
+#pdf("featureplot_pbmc_grem2.pdf", width = 10,height = 6)
+ggplot(plot_df, aes(x = umap_1, y = umap_2, color = Expression)) +
+  geom_point(size = 1.2, alpha = 0.8) + 
+  scale_color_viridis_c(option = "magma", direction = -1) + 
+  theme_void() + # Clean look
+  labs(title = paste("Expression Density GREM2"),
+       color = "Log-Normalized") +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+#dev.off()
+#plot_density(seuratM, features = gene) + 
+#  scale_color_viridis_c(option = "magma")
+
+## magma, cividis colour
+
+```
+
+
+
+```{r}
+
+#write.table(markers, file = "~/Documents/GitHub/Myocarditis EMB Project v3/docs/PBMCs/markers/markers 0.15 #resolution", sep="\t",quote=F,row.names=F,col.names=T)
+
+
+```
+
+
+
+
+### Violin Plots
+#### by Cluster
+```{r}
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+#selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "IFNG", "TNF", "IL6", "IL17A", "CCR6", "CXCR3", "CXCL9", #"CXCL10", "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", "MET", "ENG", "BMPER", #"TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", "SHH", "RUNX2")) %>% 
+#  left_join(., genes, by="geneID")
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "NCAM1", "CD4", "CD3E", "IFNG", "TNF", "IL6", "CCR6", "CXCR3", "CXCL9", "CXCL10", "BMPR1A", "BMPR2", "HGF", "MET", "RUNX2", "TNFRSF1A")) %>% 
+left_join(., genes, by="geneID")
+
+Idents(seuratM) <- seuratM$clusterName
+#pdf("violin_plots_EMB_allcells_Immpath_GREM2_axis_PBMCs.pdf", width = 8, height = 6)
+pList <- sapply(selGenes$gene, function(x){
+  p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1)
+  plot(p)
+})
+dev.off()
+
+###cols=colclusterName
+###p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+
+```
+
+#### by Visit
+```{r}
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "IFNG", "TNF", "IL6", "CCR6", "CXCR3", "CXCL9", "CXCL10", "BMPR1A", "BMPR2", "HGF", "MET", "RUNX2")) %>% 
+left_join(., genes, by="geneID")
+
+Idents(seuratM) <- seuratM$visit
+#pdf("violin_plots_EMB_allcells_Immpath_GREM_BMP_receptors.pdf", width = 8, height = 6)
+pList <- sapply(selGenes$gene, function(x){
+  p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1)
+  plot(p)
+})
+
+#dev.off()
+##p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+
+```
+
+#### by patient
+```{r}
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "TNF", "IL6", "CCR6", "CXCR3", "CXCL10", "BMPR1A", "BMPR2", "HGF", "MET", "RUNX2")) %>% 
+  left_join(., genes, by="geneID")
+
+Idents(seuratM) <- seuratM$sample
+#pdf("violin_plots_EMB_allcells_ImmpathscRNAseq_GREM_BMP_receptors.pdf", width = 8, height = 6)
+pList <- sapply(selGenes$gene, function(x){
+  p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1)
+  plot(p)
+})
+
+##p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+#dev.off()
+
+```
+
+
+#### by sample ID
+```{r}
+
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "CD3E", "CD4", "IFNG", "TNF", "IL6", "CCR6", "CXCR3", "CXCL9", "CXCL10", "BMPR1A", "BMPR2", "HGF", "MET", "RUNX2")) %>% 
+left_join(., genes, by="geneID")
+
+Idents(seuratM) <- seuratM$ID
+#pdf("violin_plots_EMB_allcells_Immpath_GREM_BMP_receptors.pdf", width = 8, height = 6)
+pList <- sapply(selGenes$gene, function(x){
+  p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1)
+  plot(p)
+})
+#dev.off()
+
+##p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+
+```
+
+## % Percent GREM2 expression
+
+## Percentage of cells expressing GREM2 in all clusters
+```{r, echo = T}
+gene <- "ENSG00000180875.GREM2" 
+
+
+expr_data <- LayerData(seuratM, layer ="data")
+#New<- JoinLayers(Objectnamet, overwrite = TRUE)
+#expr_data <- GetAssayData(seuratM, slot = "data") 
+
+## seurat v5 Layers argument
+
+
+Idents(seuratM) <- seuratM$clusterName
+
+DimPlot(seuratM, reduction = "umap")
+
+clusters <- levels(Idents(seuratM))
+
+summary_df <- data.frame()
+
+# Loop 
+for (clust in clusters) {
+  
+  cluster_cells <- colnames(seuratM)[Idents(seuratM) == clust]
+  
+  total_cells <- length(cluster_cells)
+  
+  gene_expression <- expr_data[gene, cluster_cells]
+  
+  # how many cells express gene > 0
+  gene_pos_cells <- sum(gene_expression > 0)
+  
+  # percentage of gene per cluster
+  percentage <- (gene_pos_cells / total_cells) * 100
+  
+  summary_df <- base::rbind(summary_df, data.frame(
+    Cluster = clust,
+    Total_cells = total_cells,
+    Gene_positive_cells = gene_pos_cells,
+    Percentage = round(percentage, 2)))
+}
+#dev.off()
+
+summary_df
+
+
+summary_df$Cluster <- factor(summary_df$Cluster, levels = clusters)
+
+
+kruskal_res <- kruskal.test(Percentage ~ Cluster, data = summary_df)
+
+
+#kruskal.test
+print(kruskal_res)
+
+ggplot(summary_df, aes(x = Cluster, y = Percentage, fill = Cluster)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = round(Percentage, 1)),vjust = -0.5, size = 4) +
+  scale_fill_manual(values = colclusterName) +  
+  theme_classic(base_size = 14) +
+  ylab("% of cells expressing gene") +
+  xlab("Cluster") +
+  theme(
+    axis.text.x = element_text(angle = 60, hjust = 1),
+    legend.position = "none") +
+  ggtitle("% Expression of GREM2 across clusters") +
+  ylim(0, max(summary_df$Percentage) * 1.1)  +
+  scale_x_discrete(expand = expansion(mult = c(0.05, 0.1)))
+
+```
+
+
+```{r, include = F}
+p_label <- paste0("Kruskal–Wallis p = ", signif(kruskal_res$p.value, 3))
+
+
+p <- ggplot(summary_df, aes(x = Cluster, y = Percentage, fill = Cluster)) +
+  geom_bar(stat = "identity", width = 0.7) +
+ scale_fill_manual(values = colclusterName) +  
+  theme_classic(base_size = 14) +
+  ylab("% of cells expressing GREM2") +
+  xlab("Cluster") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none") +
+  ggtitle(paste0("% Expression of GREM2 across clusters")) +
+  annotate("text", x = Inf, y = Inf, label = p_label, 
+           hjust = 3, vjust = 2, size = 4, color = "black")
+
+p
+
+
+```
+
+```{r}
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(tidyr)
+
+# Define your genes
+target_gene <- "GREM2"
+other_genes <- c("CD3E", "CD8A", "GZMB", "IL7R", "TCF7") # Add as many as you want
+all_genes <- unique(c(target_gene, other_genes))
+
+# Get expression data
+expr_data <- LayerData(seuratM, layer = "data")
+Idents(seuratM) <- seuratM$clusterName
+clusters <- levels(Idents(seuratM))
+
+# Master list to store results
+results_list <- list()
+
+# --- START NESTED LOOP ---
+for (gene in all_genes) {
+  # Temporary data frame for this specific gene
+  gene_summary <- data.frame()
+  
+  for (clust in clusters) {
+    cluster_cells <- colnames(seuratM)[Idents(seuratM) == clust]
+    total_cells <- length(cluster_cells)
+    
+    # Check if gene exists in the matrix to avoid errors
+    if (gene %in% rownames(expr_data)) {
+      gene_expression <- expr_data[gene, cluster_cells]
+      gene_pos_cells <- sum(gene_expression > 0)
+      percentage <- (gene_pos_cells / total_cells) * 100
+    } else {
+      percentage <- 0
+      gene_pos_cells <- 0
+    }
+    
+    gene_summary <- rbind(gene_summary, data.frame(
+      Gene = gene,
+      Cluster = clust,
+      Percentage = round(percentage, 2)
+    ))
+  }
+  results_list[[gene]] <- gene_summary
+}
+
+# Combine all results into one tidy dataframe
+master_df <- bind_rows(results_list)
+master_df$Cluster <- factor(master_df$Cluster, levels = clusters)
+```
+
+
+
+```{r}
+gene <- 	"ENSG00000111537.IFNG"
+
+expr_data <- LayerData(seuratM, layer ="data")
+#New<- JoinLayers(Objectnamet, overwrite = TRUE)
+#expr_data <- GetAssayData(seuratM, slot = "data") ## argument depreciated
+
+
+Idents(seuratM) <- seuratM$ID
+
+DimPlot(seuratM, reduction = "umap")
+
+clusters <- levels(Idents(seuratM))
+
+summary_df <- data.frame()
+
+# Loop 
+for (clust in clusters) {
+  
+  cluster_cells <- colnames(seuratM)[Idents(seuratM) == clust]
+  
+  total_cells <- length(cluster_cells)
+  
+  gene_expression <- expr_data[gene, cluster_cells]
+  
+  # how many cells express gene > 0
+  gene_pos_cells <- sum(gene_expression > 0)
+  
+  # percentage of gene per cluster
+  percentage <- (gene_pos_cells / total_cells) * 100
+  
+  summary_df <- base::rbind(summary_df, data.frame(
+    Cluster = clust,
+    Total_cells = total_cells,
+    Gene_positive_cells = gene_pos_cells,
+    Percentage = round(percentage, 2)))
+}
+#dev.off()
+
+summary_df
+
+
+summary_df$Cluster <- factor(summary_df$Cluster, levels = clusters)
+
+
+kruskal_res <- kruskal.test(Percentage ~ Cluster, data = summary_df)
+
+
+#kruskal.test
+print(kruskal_res)
+
+
+p_label <- paste0("Kruskal–Wallis p = ", signif(kruskal_res$p.value, 3))
+
+
+p <- ggplot(summary_df, aes(x = Cluster, y = Percentage, fill = Cluster)) +
+  geom_bar(stat = "identity", width = 0.7) +
+ # scale_fill_manual(values = colclusterName) +  
+  theme_classic(base_size = 14) +
+  ylab("% of cells expressing IFNG") +
+  xlab("Cluster") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none") +
+  ggtitle(paste0("Expression of IFNG across clusters")) +
+  annotate("text", x = Inf, y = Inf, label = p_label, 
+           hjust = 3, vjust = 2, size = 4, color = "black")
+
+p
+
+```
+
+
+```{r}
+gene <- 	"ENSG00000232810.TNF"
+
+expr_data <- LayerData(seuratM, layer ="data")
+#New<- JoinLayers(Objectnamet, overwrite = TRUE)
+#expr_data <- GetAssayData(seuratM, slot = "data") ## argument depreciated
+
+
+Idents(seuratM) <- seuratM$ID
+
+DimPlot(seuratM, reduction = "umap")
+
+clusters <- levels(Idents(seuratM))
+
+summary_df <- data.frame()
+
+# Loop 
+for (clust in clusters) {
+  
+  cluster_cells <- colnames(seuratM)[Idents(seuratM) == clust]
+  
+  total_cells <- length(cluster_cells)
+  
+  gene_expression <- expr_data[gene, cluster_cells]
+  
+  # how many cells express gene > 0
+  gene_pos_cells <- sum(gene_expression > 0)
+  
+  # percentage of gene per cluster
+  percentage <- (gene_pos_cells / total_cells) * 100
+  
+  summary_df <- base::rbind(summary_df, data.frame(
+    Cluster = clust,
+    Total_cells = total_cells,
+    Gene_positive_cells = gene_pos_cells,
+    Percentage = round(percentage, 2)))
+}
+#dev.off()
+
+summary_df
+
+
+summary_df$Cluster <- factor(summary_df$Cluster, levels = clusters)
+
+
+kruskal_res <- kruskal.test(Percentage ~ Cluster, data = summary_df)
+
+
+#kruskal.test
+print(kruskal_res)
+
+
+p_label <- paste0("Kruskal–Wallis p = ", signif(kruskal_res$p.value, 3))
+
+
+p <- ggplot(summary_df, aes(x = Cluster, y = Percentage, fill = Cluster)) +
+  geom_bar(stat = "identity", width = 0.7) +
+ # scale_fill_manual(values = colclusterName) +  
+  theme_classic(base_size = 14) +
+  ylab("% of cells expressing TNF") +
+  xlab("Cluster") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none") +
+  ggtitle(paste0("Expression of TNF across clusters")) +
+  annotate("text", x = Inf, y = Inf, label = p_label, 
+           hjust = 3, vjust = 2, size = 4, color = "black")
+
+p
+```
+
+
+```{r}
+genes <- c("ENSG00000111537.IFNG",
+           "ENSG00000232810.TNF",
+           "ENSG00000180875.GREM2",
+           "ENSG00000136244.IL6",
+           "ENSG00000125538.IL1B",
+           "ENSG00000112486.CCR6",
+           "ENSG00000073861.TBX21",
+           "ENSG00000186810.CXCR3",
+           
+           )
+           
+           
+
+   "IL6", "IL1B",
+  "CCR7", "IL7R", "SELL",
+  "FOXP3",
+  "CCR6", "CXCR3",
+  "TBX21",
+  "GZMB", "PRF1", "NKG7",
+  "IL17A", "RORC",
+  "PDCD1", "LAG3", "TIGIT",
+  "CXCL13")
+
+
+
+Idents(seuratM) <- seuratM$clusterName
+expr_data <- LayerData(seuratM, layer = "data")
+
+clusters <- levels(Idents(seuratM))
+
+summary_list <- list()
+
+for (gene in genes) {
+
+  if (!gene %in% rownames(expr_data)) next
+
+  gene_vec <- expr_data[gene, ]
+
+  df <- data.frame(
+    Cluster = Idents(seuratM),
+    Expressed = gene_vec > 0
+  )
+
+  summary_df <- df %>%
+    group_by(Cluster) %>%
+    summarise(
+      Total_cells = n(),
+      Gene_positive_cells = sum(Expressed),
+      Percentage = round(mean(Expressed) * 100, 2),
+      .groups = "drop"
+    ) %>%
+    mutate(Gene = gene)
+
+  summary_list[[gene]] <- summary_df
+}
+
+final_summary <- bind_rows(summary_list)
+
+final_summary
+
+```
+
+
+```{r}
+
+target_gene <- "GREM2" 
+inflammatory_genes <- c("IFNG", "TNF", "IL1B", "IL6", "CCR7", "IL7R")
+
+
+all_seurat_features <- rownames(seuratM)
+
+
+find_complex_name <- function(symbol) {
+ 
+  match <- grep(paste0("\\.", symbol, "$"), all_seurat_features, value = TRUE, ignore.case = TRUE)
+  if (length(match) > 0) return(match[1]) else return(NA)
+}
+
+
+target_complex <- find_complex_name(target_gene)
+inf_complex <- sapply(inflammatory_genes, find_complex_name)
+
+
+inf_complex <- inf_complex[!is.na(inf_complex)]
+
+
+if (is.na(target_complex)) stop("Target gene was not found in the dataset!")
+
+
+vars_to_fetch <- c(target_complex, unname(inf_complex))
+expr_data <- FetchData(seuratM, vars = vars_to_fetch)
+
+
+clean_names <- c(target_gene, names(inf_complex))
+colnames(expr_data) <- clean_names
+
+
+cor_matrix <- cor(expr_data, method = "spearman")
+print("correlation matrix")
+print(cor_matrix)
+
+
+results_list <- list()
+target_expr <- expr_data[[target_gene]]
+
+
+for (gene in names(inf_complex)) {
+  gene_expr <- expr_data[[gene]]
+  
+  stat_test <- cor.test(target_expr, gene_expr, method = "spearman", exact = FALSE)
+  
+
+  results_list[[gene]] <- data.frame(
+    Target_Gene = target_gene,
+    Inflammatory_Gene = gene,
+    Rho = stat_test$estimate,     
+    P_Value = stat_test$p.value)
+}
+
+stats_table <- do.call(rbind, results_list)
+rownames(stats_table) <- NULL
+
+stats_table$Adjusted_P <- p.adjust(stats_table$P_Value, method = "fdr")
+
+# Sort by the strongest correlation
+stats_table <- stats_table[order(-abs(stats_table$Rho)), ]
+
+stats_table
+
+```
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+VlnPlot(seuratM, 
+        features = "ENSG00000180875.GREM2", 
+       group.by = "Inflammation_status", 
+        pt.size = 0.5,
+        slot = "data") 
+
+VlnPlot(seuratM, 
+        features = "ENSG00000067182.TNFRSF1A", 
+        pt.size = 0.5,
+        slot = "data") 
+
+
+
+
+
+#VlnPlot(seuratM, features = "ENSG00000180875.GREM2") +
+ # geom_violin(scale = "width", adjust = 3, trim = F) 
+
+
+# cells that have GREM2 expression > 0 
+gene_name <- "ENSG00000180875.GREM2"
+pos_cells <- WhichCells(seuratM, expression = !!sym(gene_name) > 0)
+
+seurat_pos <- subset(seuratM, cells = pos_cells)
+
+## Violin plots show only cells with non-zero expression.
+VlnPlot(seurat_pos, 
+        features = gene_name, 
+        pt.size = 0.5, 
+        group.by = "clusterName", cols = colclusterName) + 
+  ggtitle(paste("GREM2 Expression")) +
+  ylab("Log-Normalized Expression")
+
+
+
+VlnPlot(seuratM, 
+        features = "ENSG00000180875.GREM2", 
+       # group.by = "severity", 
+        pt.size = 0.5,
+        slot = "data", cols = colclusterName) 
+
+#VlnPlot(seuratM, features = "ENSG00000180875.GREM2") +
+ # geom_violin(scale = "width", adjust = 3, trim = F) 
+
+
+
+
+
+
+VlnPlot(seuratM, 
+        features = "ENSG00000090339.ICAM1",
+       # group.by = "severity", 
+        pt.size = 0.5,
+        slot = "data") 
+
+```
+
+
+
+```{r, fig.width }
+#table(seuratM$TC)
+
+### GREM2 Expression in CD4+ T cell Cluster by visit
+
+Tcells <- colnames(seuratM)[seuratM@meta.data$RNA_snn_res.0.25 == "8"]
+
+#GREM2_expression <- GetAssayData(seuratM, slot = "data")["ENSG00000180875.GREM2", Tcells]
+
+GREM2_expression <- LayerData(seuratM, layer ="data")["ENSG00000180875.GREM2", Tcells]
+
+conditions <- seuratM@meta.data[Tcells, "visit"]
+
+df <- data.frame(
+  expression = as.numeric(GREM2_expression),
+  condition = factor(conditions))
+
+df$expressed <- df$expression > 0
+
+summary <- df %>%
+  group_by(condition) %>%
+  summarise(
+    n_cells = n(),
+    mean_expression = mean(expression),
+    n_expr = sum(expressed),
+    percent_expr = 100 * mean(expressed),
+    .groups = "drop")
+
+print(summary)
+
+contingency_tbl <- table(df$condition, df$expressed)
+fisher_result <- fisher.test(contingency_tbl)
+p_val <- signif(fisher_result$p.value, 3)
+
+
+
+summary$condition <- factor(summary$condition, levels = c("0m","12m"))
+
+
+y_max <- ceiling(max(summary$percent_expr) * 1.15)
+
+colpat_sub<- c("#BE3144", "#dfc27d")
+
+#pdf("GREM2donorHeart vs AM.pdf")
+p <- ggplot(summary, aes(x = condition, y = percent_expr, fill = condition)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  geom_text(aes(label = sprintf("%.1f%%", percent_expr)), vjust = -0.5) +
+ # coord_cartesian(ylim = c(0, y_max)) +  
+  ylim(0, 10) +
+  scale_fill_manual(values = colpat_sub) +
+  theme_classic() +
+  labs(
+    title = paste0("GREM2 Expression in CD4+ T cell Cluster by visit", GREM2_expression),
+    subtitle = paste0("Fisher's Exact Test p = ", p_val),
+    x = "Condition",
+    y = "Percent of cells expressing GREM2") +
+  theme(legend.position = "none")
+#dev.off()
+p
+
+```
+
+## Correlation 
+```{r, echo = FALSE}
+
+genes <- c("ENSG00000111537.IFNG", "ENSG00000180875.GREM2")
+
+expr_matrix <- LayerData(seuratM, layer = "data")
+
+
+target_expression <- as.numeric(expr_matrix[genes, ])
+
+#expressionMatrix <- GetAssayData(seuratM, slot = "data")[genes, ]
+patient_metadata <- seuratM$ID
+
+
+mean_expression_per_patient <- data.frame(ID = patient_metadata,
+  t(target_expression)) %>%
+  group_by(ID) %>%
+  summarise(
+    mean_IFNG = mean(ENSG00000111537.IFNG),
+    mean_GREM2 = mean(ENSG00000180875.GREM2),
+    .groups = "drop")
+
+head(mean_expression_per_patient)
+
+ggscatter(mean_expression_per_patient,
+          x = "mean_IFNG",
+          y = "mean_GREM2",
+          add = "reg.line",
+          conf.int = TRUE,
+          cor.coef = TRUE,
+          cor.method = "spearman",
+          add.params = list(color = "darkred", size = 1.2),
+          xlab = "Log-normalized Mean IFNG Expression",
+          ylab = "Log-normalized Mean GREM2 Expression",
+          title = "Correlation: INFG vs. GREM2 Expression per Patient")
+
+
+#"GREM2", "GREM1", "BMP4",  "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", #"MET", "ENG", "BMPER", "TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", #"SHH", "RUNX2"
+
+
+```
+
+## Correlation TNF vs. GREM2
+```{r, echo = FALSE}
+
+genes <- c("ENSG00000232810.TNF", "ENSG00000180875.GREM2")
+
+expr_matrix <- LayerData(seuratM, layer = "data")
+
+
+target_expression <- as.numeric(expr_matrix[genes, ])
+
+#expressionMatrix <- GetAssayData(seuratM, slot = "data")[genes, ]
+patient_metadata <- seuratM$sample
+
+
+mean_expression_per_patient <- data.frame(ID = patient_metadata,
+  t(target_expression)) %>%
+  group_by(ID) %>%
+  summarise(
+    mean_TNF = mean("ENSG00000232810.TNF"),
+    mean_GREM2 = mean("ENSG00000180875.GREM2"),
+    .groups = "drop")
+
+head(mean_expression_per_patient)
+
+ggscatter(mean_expression_per_patient,
+          x = "mean_TNF",
+          y = "mean_GREM2",
+          add = "reg.line",
+          conf.int = TRUE,
+          cor.coef = TRUE,
+          cor.method = "spearman",
+          add.params = list(color = "darkred", size = 1.2),
+          xlab = "Log-normalized Mean TNF Expression",
+          ylab = "Log-normalized Mean GREM2 Expression",
+          title = "Correlation: TNF vs. GREM2 Expression per Patient")
+
+
+#"GREM2", "GREM1", "BMP4",  "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", #"MET", "ENG", "BMPER", "TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", #"SHH", "RUNX2"
+
+
+```
+
+```{r}
+genes <- c("ENSG00000126353.CCR7", "ENSG00000180875.GREM2")
+
+expr_matrix <- LayerData(seuratM, layer = "data")
+
+
+target_expression <- as.numeric(expr_matrix[genes, ])
+
+#expressionMatrix <- GetAssayData(seuratM, slot = "data")[genes, ]
+patient_metadata <- seuratM$ID
+
+
+mean_expression_per_patient <- data.frame(ID = patient_metadata,
+  t(target_expression)) %>%
+  group_by(ID) %>%
+  summarise(
+    mean_gene = mean("ENSG00000126353.CCR7"),
+    mean_GREM2 = mean("ENSG00000180875.GREM2"),
+    .groups = "drop")
+
+head(mean_expression_per_patient)
+
+ggscatter(mean_expression_per_patient,
+          x = "mean_TNF",
+          y = "mean_GREM2",
+          add = "reg.line",
+          conf.int = TRUE,
+          cor.coef = TRUE,
+          cor.method = "spearman",
+          add.params = list(color = "darkred", size = 1.2),
+          xlab = "Log-normalized Mean CCR7 Expression",
+          ylab = "Log-normalized Mean GREM2 Expression",
+          title = "Correlation: CCR7 vs. GREM2 Expression per Patient")
+
+
+#"GREM2", "GREM1", "BMP4",  "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", #"MET", "ENG", "BMPER", "TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", #"SHH", "RUNX2"
+
+
+```
+
+
+
+
+
+
+
+## Correlation 
+```{r, echo = FALSE}
+
+genes <- c("ENSG00000126353.CCR7", "ENSG00000180875.GREM2")
+
+expr_matrix <- LayerData(seuratM, layer = "data")
+
+
+target_expression <- as.numeric(expr_matrix[genes, ])
+
+#expressionMatrix <- GetAssayData(seuratM, slot = "data")[genes, ]
+patient_metadata <- seuratM$ID
+
+
+mean_expression_per_patient <- data.frame(ID = patient_metadata,
+  t(target_expression)) %>%
+  group_by(ID) %>%
+  summarise(
+    mean_CCR7 = mean(ENSG00000126353.CCR7),
+    mean_GREM2 = mean(ENSG00000180875.GREM2),
+    .groups = "drop")
+
+head(mean_expression_per_patient)
+
+ggscatter(mean_expression_per_patient,
+          x = "mean_CCR7",
+          y = "mean_GREM2",
+          add = "reg.line",
+          conf.int = TRUE,
+          cor.coef = TRUE,
+          cor.method = "spearman",
+          add.params = list(color = "darkred", size = 1.2),
+          xlab = "Log-normalized Mean CCR7 Expression",
+          ylab = "Log-normalized Mean GREM2 Expression",
+          title = "Correlation: CCR7 vs. GREM2 Expression per Patient")
+
+
+#"GREM2", "GREM1", "BMP4",  "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", #"MET", "ENG", "BMPER", "TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", #"SHH", "RUNX2"
+
+
+```
+
+```{r}
+comparison_genes
+
+gene_of_interest <- "ENSG00000180875.GREM2"
+
+comparison_genes <- data.frame(geneID = rev(c("BMP4", "GREM1", "CD3E", "PTPRC", "CD2", "IFNG", "CXCL10", "TNF", "CXCL10", "CXCL9", "CD28","ICOS", "CD40LG","CXCR3", "CCR6","RORC", "TBX21",  "FCGR3A","FOXP3", "CD69", "CCR7", "IL7R", "ITGB1","IL10", "CXCR8", "IFNA1", "MYD88", "TGFB2" ))) %>%
+left_join(., genes, by = "geneID")%>%
+filter(gene != "ENSG00000232995.RGS5")
+
+
+
+features <- unique(as.character(unlist(c(gene_of_interest, comparison_genes))))
+
+mat_all <- GetAssayData(seuratM, slot = "data")
+mat_all <- as.matrix(mat_all)
+mat <- mat_all[features, , drop = FALSE]
+
+expression_df <- data.frame(
+  patient = seuratM$patient,
+  t(mat),
+  check.names = FALSE
+)
+
+patient_means <- expression_df %>%
+  group_by(patient) %>%
+  summarise(across(all_of(features), ~mean(.x, na.rm = TRUE)), .groups = "drop")
+
+cor_table <- lapply(as.character(unlist(comparison_genes)), function(gene) {
+  ct <- cor.test(patient_means[[gene_of_interest]],
+                 patient_means[[gene]],
+                 method = "spearman", exact = FALSE)
+  data.frame(
+    comparison_gene = gene,
+    spearman_r = unname(ct$estimate),
+    p_value = ct$p.value,
+    n_patients = sum(complete.cases(patient_means[[gene_of_interest]], patient_means[[gene]]))
+  )
+}) |>
+  bind_rows() |>
+  mutate(p_adj = p.adjust(p_value, method = "BH")) |>
+  arrange(p_adj)
+
+cor_table
+
+```
+
+
+## Correlation 
+```{r, echo = FALSE}
+
+genes <- c("ENSG00000126353.CCR7", "ENSG00000180875.GREM2")
+
+expr_matrix <- LayerData(seuratM, layer = "data")
+
+
+target_expression <- as.numeric(expr_matrix[genes, ])
+
+#expressionMatrix <- GetAssayData(seuratM, slot = "data")[genes, ]
+patient_metadata <- seuratM$ID
+
+
+mean_expression_per_patient <- data.frame(ID = patient_metadata,
+  t(target_expression)) %>%
+  group_by(ID) %>%
+  summarise(
+    mean_gene = mean(ENSG00000126353.CCR7),
+    mean_GREM2 = mean(ENSG00000180875.GREM2),
+    .groups = "drop")
+
+head(mean_expression_per_patient)
+
+ggscatter(mean_expression_per_patient,
+          x = "mean_CCR7",
+          y = "mean_GREM2",
+          add = "reg.line",
+          conf.int = TRUE,
+          cor.coef = TRUE,
+          cor.method = "spearman",
+          add.params = list(color = "darkred", size = 1.2),
+          xlab = "Log-normalized Mean CCR7 Expression",
+          ylab = "Log-normalized Mean GREM2 Expression",
+          title = "Correlation: CCR7 vs. GREM2 Expression per Patient")
+
+
+#"GREM2", "GREM1", "BMP4",  "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", #"MET", "ENG", "BMPER", "TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", #"SHH", "RUNX2"
+
+
+```
+
+
+```{r}
+
+target_gene <- "GREM2" 
+inflammatory_genes <- c("IFNG", "TNF", "IL1B", "IL6", "CCR7", "IL7R")
+
+# 2. Map clean symbols to their complex Seurat Ensembl names (ENSG...)
+all_seurat_features <- rownames(seuratM)
+
+find_complex_name <- function(symbol) {
+  match <- grep(paste0("\\.", symbol, "$"), all_seurat_features, value = TRUE, ignore.case = TRUE)
+  if (length(match) > 0) return(match[1]) else return(NA)
+}
+
+target_complex <- find_complex_name(target_gene)
+inf_complex <- sapply(inflammatory_genes, find_complex_name)
+inf_complex <- inf_complex[!is.na(inf_complex)] # Remove missing genes
+
+if (is.na(target_complex)) stop("Target gene was not found in the dataset!")
+
+
+vars_to_fetch <- c(target_complex, unname(inf_complex))
+expr_data <- FetchData(seuratM, vars = vars_to_fetch)
+
+
+colnames(expr_data) <- c(target_gene, names(inf_complex))
+
+
+expr_data$Cluster <- Idents(seuratM)
+
+
+pct_expr_data <- expr_data %>%
+  group_by(Cluster) %>%
+  summarise(across(all_of(c(target_gene, names(inf_complex))), ~ sum(. > 0) / n() * 100)) %>%
+  tibble::column_to_rownames("Cluster")
+
+print("percent expression per cluster")
+print(pct_expr_data)
+
+
+cor_matrix <- cor(pct_expr_data, method = "spearman")
+
+
+results_list <- list()
+target_pct <- pct_expr_data[[target_gene]]
+
+for (gene in names(inf_complex)) {
+  gene_pct <- pct_expr_data[[gene]]
+  
+
+  stat_test <- cor.test(target_pct, gene_pct, method = "spearman", exact = FALSE)
+  
+  results_list[[gene]] <- data.frame(
+    Target_Gene = target_gene,
+    Inflammatory_Gene = gene,
+    Rho = stat_test$estimate,      # Correlation of the percentages
+    P_Value = stat_test$p.value
+  )
+}
+
+
+stats_table <- do.call(rbind, results_list)
+rownames(stats_table) <- NULL
+stats_table$Adjusted_P <- p.adjust(stats_table$P_Value, method = "fdr")
+stats_table <- stats_table[order(-abs(stats_table$Rho)), ]
+
+print("% expression correlation summary")
+stats_table
+```
+
+
+```{r}
+### IFNG, TNF correlation
+
+## Correlation mit effector function; in welchen Zellen kommt es vor Effector memory
+
+## 
+
+
+```
+
+
+```{r}
+
+table(seuratM$sample, seuratM$clusterName)
+
+
+```
+
+
+
+## Feature Plots of Marker Genes
+```{r }
+
+## Find marker genes for each cluster
+
+get_full_gene_name <- function(gene, obj){
+  return(grep(gene,rownames(obj), value =TRUE))
+}
+get_full_gene_name("CD3E",seuratM) 
+```
+
+
+

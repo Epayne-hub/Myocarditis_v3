@@ -1,0 +1,1037 @@
+---
+title: "Markers and cell annotation scRNAseq PBMCs"
+author: "EP"
+date: "23.02.2026"
+output: html_document
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+library(Nebulosa)
+library(devtools)
+library(fgsea)
+library(dplyr)
+library(ggplot2)
+library(msigdbr)
+
+#devtools::install_github("Ludewig-Lab/ImmunoLogic")
+
+```
+
+
+```{r, echo = F}
+#seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq #PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_22.02.2026.rds")
+
+
+#seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq #PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_01.03.2026_annotated.rds")
+
+
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_02.03.2026_annotated.rds")
+
+table(seuratM$orig.ident)
+
+```
+
+```{r}
+table(seuratM$sample)
+```
+
+
+```{r}
+table(seuratM$sample, seuratM$clusterName)
+```
+
+```{r}
+table(seuratM$visit)
+```
+
+
+```{r, echo = F}
+Idents(seuratM) <- seuratM$clusterName
+
+levels(seuratM)
+markers <- FindAllMarkers(seuratM, only.pos = T) %>%
+                            dplyr::filter(p_val_adj < 0.01)
+
+
+
+markers <- markers %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+#View(markers)
+
+head(markers)
+
+```
+
+
+
+
+
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.1
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.2
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) #%>% ggplotly
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.3
+
+DimPlot(seuratM, reduction = "umap", label = TRUE) 
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.4
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.6
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.8
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+```
+
+
+
+
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+DimPlot(seuratM, reduction = "umap",label = T, repel = TRUE)
+
+seuratM$clusterName <- "clusterName"
+Idents(seuratM) <- seuratM$clusterName
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "0" )] <- "CD4+ TN" ## (naive CD4+ T cells)
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "1" )] <- "classical monocytes"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "2")] <-  "TEM" 
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "3")] <- "naive B cells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "4" )] <- "CD4+ TCM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "5" )] <- "innate-like T cells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "6")] <- "CD8+ TCM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "7")] <- "NK cells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "8" )] <- "CD4+ TEM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "9" )] <- "int/non-classical monocytes"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "10" )] <- "CD8+ TEM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "11" )] <- "memory B cells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "12" )] <- "CXCL10 high DCs"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "13" )] <- "CD1c high DCs"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "14" )] <- "Doublet"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "15" )] <- "pDCs"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "16" )] <- "plasma cells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "17" )] <- "activated effector T cells" 
+
+colclusterName <- c("#ffeda0","#e31a1c","#fa9fb5", "#91003F","#feb24c","darkred", "#fd8d3c","#CE1256", "#efedf5", "#807dba", "#a6bddb", "#67a9cf", "#1C9099","#016c59", "#014636", "#034e7b", "#807dba", "grey")
+
+names(colclusterName) <- c("CD4+ TN", "CD4+ TEM", "CD4+ TCM", "TEM", "activated effector T cells", "CD8+ TEM", "CD8+ TCM", "NK cells", "innate-like T cells", "naive B cells", "memory B cells", "plasma cells", "classical monocytes", "int/non-classical monocytes", "CD1c high DCs", "CXCL10 high DCs", "pDCs", "Doublet")
+
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CD4+ TN", "CD4+ TEM", "CD4+ TCM", "TEM", "activated effector T cells", "CD8+ TEM", "CD8+ TCM", "NK cells", "innate-like T cells", "naive B cells", "memory B cells", "plasma cells", "classical monocytes", "int/non-classical monocytes", "CD1c high DCs", "CXCL10 high DCs", "pDCs", "Doublet"))
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = T, repel = TRUE, cols = colclusterName) + NoLegend()
+
+#pdf("umap_scRNAseq PBMC no legend.pdf", width = 10, height = 6) 
+DimPlot(seuratM, reduction = "umap",label = F, repel = TRUE, cols = colclusterName) + NoLegend()
+#dev.off()
+
+
+```
+
+## Relatice abundances per visit Baseline vs. 12 months
+```{r}
+
+table(seuratM$visit)
+
+datList <- NULL
+for(con in unique(seuratM$visit)){
+  seuratMSub <- subset(seuratM, visit==con)
+  print(dim(seuratMSub))
+  dat_con <- as.data.frame(table(seuratMSub$clusterName)) %>%
+  mutate(percent=Freq/ncol(seuratMSub)) %>% mutate(visit=con)
+  datList[[con]] <- dat_con
+  
+}
+
+table(seuratM$visit)
+
+dat_all <- do.call("rbind", datList)
+
+order_TC_group <- c("0m", "12m")
+
+dat_sub <- dat_all %>%
+  filter(visit %in% c("0m", "12m"))
+
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/PBMCs/relative abundance circle EMB all cells.pdf")       
+ggplot(dat_sub, aes(x = 2, y = percent, fill = Var1)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar(theta = "y") +
+  facet_wrap(~ visit) +
+  scale_fill_manual(values = colclusterName) +
+  xlim(0.5, 2.5) +  
+  labs(fill = "cluster") +
+  theme_void()
+
+#dev.off()
+```
+
+
+```{r, fig.height = 12}
+
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE)
+
+genesPlot <- data.frame(gene= c("CD3D", "CD3E", "CD3G", "TRAC", "TRBC1,", "RORA", "CD69", "CD4", "IL7R", "SELL", "GREM2", "FOXP3",  "ICOS", "CTLA4", "CD40LG", "TRDV1", "IFNG", "CD44", "CXCR3", "TRAV2", "CD8A", "CD8B", "KIT", "KLRG1", "KLRC2","KLRC1", "GZMB", "TBX21", "KLRB1", "NCAM1", "KLRD1", "TRGC1",  "FCGR3A", "TRGC2","SLC4A10", "TRAV1
+", "IKT", "CCR6", "RORC", "LY9", "CCR7",  "MS4A1", "HLA-DQB1", "CD79A", "CD19",  "IGHM", "JCHAIN", "TREM1","MCTP1", "CD14", "CSF1R", "CSF3R", "AZU", "S100A8", "CD163", "CD1C",  "SIGLEC1", "STAB1", "GREM1", "CLEC9A", "IGAM", "ITGAX",   "CLEC12A", "LYZ", "CSF3R" , "CD68","CCR2", "APOE", "CXCL10", "TLR7", "LILRA4",  "CLEC4C", "IL3RA", "IFIT1",  "MX1", "XCR1"))
+
+
+#DotPlot(seuratM, features = genesPlot$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + R#otatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x)) 
+
+
+#pdf("heatmap marker genes scRNAseq PBMC.pdf", width = 8, height = 14) 
+avgHeatmap(seuratM, selGenes = genesPlot, annotation_colors = colclusterName)
+#dev.off()
+
+```
+
+
+
+## T cell subset and Hallmark
+```{r}
+seuratTcell <- subset(seuratM, clusterName %in% c("CD4+ TN", "CD4+ TEM", "CD4+ TCM", "TEM", "activated effector T cells", "CD8+ TEM", "CD8+ TCM", "NK cells", "innate-like T cells")) 
+
+table(seuratTcell$orig.ident)
+
+table(seuratTcell$clusterName)
+```
+
+
+```{r}
+seuratM <- seuratTcell
+```
+
+
+
+```{r}
+
+
+
+# 1. Prepare Gene Sets
+hallmark_genes <- msigdbr(species = "Homo sapiens", category = "H")
+pathways_list <- split(x = hallmark_genes$gene_symbol, f = hallmark_genes$gs_name)
+names(pathways_list) <- gsub("HALLMARK_", "", names(pathways_list))
+
+# 2. Extract Markers (Ensure Ident is set correctly)
+Idents(seuratM) <- "clusterName" 
+#seurat_markers <- FindAllMarkers(seuratM, only.pos = FALSE, min.pct = 0.1, logfc.threshold = 0)
+seurat_markers$gene_clean <- gsub(".*\\.", "", seurat_markers$gene)
+
+# 3. Run GSEA Loop with Error Fixes
+cluster_names <- unique(seurat_markers$cluster)
+
+gsea_results_list <- lapply(cluster_names, function(clust) {
+  # Filter and collapse duplicates (keeping highest absolute logFC)
+  clust_data <- seurat_markers %>%
+    filter(cluster == clust) %>%
+    group_by(gene_clean) %>%
+    slice_max(order_by = abs(avg_log2FC), n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  # Force conversion to named numeric vector (fixes the 'list/closure' errors)
+  ranks <- as.numeric(clust_data$avg_log2FC)
+  names(ranks) <- as.character(clust_data$gene_clean)
+  ranks <- sort(ranks[!is.na(ranks)], decreasing = TRUE)
+  
+  # Run fgsea
+  res <- fgsea(pathways = pathways_list, 
+               stats = ranks, 
+               minSize = 15, 
+               maxSize = 500)
+  res$cluster <- clust
+  return(res)
+})
+
+gsea_df <- bind_rows(gsea_results_list)
+
+# 4. Filter for your TARGETED Pathways
+selected_pathways <- c(
+  "IL2_STAT5_SIGNALING", 
+  "IL6_JAK_STAT3_SIGNALING", 
+  "INFLAMMATORY_RESPONSE", 
+  "INTERFERON_ALPHA_RESPONSE", 
+  "INTERFERON_GAMMA_RESPONSE", 
+  "TNFA_SIGNALING_VIA_NFKB", 
+  "TGF_BETA_SIGNALING")
+
+plot_data <- gsea_df %>% filter(pathway %in% selected_pathways)
+
+# 5. Final Publication-Ready DotPlot
+p_gsea <- ggplot(plot_data, aes(x = cluster, y = pathway)) +
+  geom_point(aes(size = -log10(padj), fill = NES), shape = 21, color = "black", stroke = 0.6) +
+  scale_fill_gradient2(low = "#0571b0", mid = "white", high = "#ca0020", midpoint = 0, name = "NES") +
+  scale_size_continuous(range = c(2, 10), name = "-log10(p-adj)") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    aspect.ratio = 0.8,
+    panel.grid.major = element_line(color = "grey90")
+  ) +
+  labs(title = "Targeted Hallmark GSEA", x = NULL, y = "Hallmark Pathway")
+
+print(p_gsea)
+```
+
+
+
+## annotation according to memory subset markers
+```{r, fig.height = 10}
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+Idents(seuratTcell) <- seuratTcell$clusterName
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE) #, cols = colclusterName)
+
+genesPlot <- data.frame(gene= c("CD3D", "CD3E", "CD3G", "RORA", "CD69", "CD4", "IL7R", "SELL", "GREM2", "FOXP3", "IL2RA", "GITR", "ICOS", "CTLA4", "TNFRSF18", "CD40LG", "TRDV1", "IFNG", "TNF", "CD44", "CXCR3", "TRAV2", "CD8A", "CD8B", "KLRG1", "GZMB", "PRF1", "TBX21", "KLRB1", "NCAM1", "KLRD1", "TRGC1",  "FCGR3A",  "CCR6", "RORC", "CCR7", "ID2", "ID3", "CD27", "CD28", "CD38", "MKI67", "KLF2", "FAS", "CD58", "ITGA4", "ITGAL", "B3GAT1", "CX3CR1", "HNF1A", "GATA3", "CCR4", "HLA-DRB1", "CXCR5",  "CCR8", "IKZF2", "TIGIT", "TIM3", "PDCD1", "IL6", "IL9", "CD122", "TRAC"))
+
+
+
+selGenes <- data.frame(geneID=rev(c("GREM2", "CD3D", "CD3E", "CD3G", "RORA", "CD4", "CD8A", "CD8B", "IL7R", "SELL", "CD44", "KLRG1", "CCR7", "ID2", "ID3", "CD27", "CD28", "CD58", "ITGA4", "ITGAL", "FAS",  "KLF2", "CD69",  "IL2RA", "HLA-DRB1","CD38",  "FOXP3", "GITR", "ICOS",  "IKZF2",  "CTLA4", "CXCR5", "SPI1", "CCR8", "GATA3", "CCR4",  "TNFRSF18",  "TRDV1", "IFNG", "TNF", "CXCR3", "IL9", "CD122", "TRAV2", "GZMB", "PRF1", "TBX21", "KLRB1", "KLRD1","NCAM1", "TRGC1",  "FCGR3A",  "CCR6", "RORC", "HNF1A", "MKI67",  "B3GAT1", "CX3CR1", "TOX", "TIGIT", "TIM3", "PDCD1", "IL6", "TRAC","SLC4A10"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+DotPlot(seuratTcell, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x)) 
+
+
+##naive: CCR7hi, CD45RA+, CD45RO−, CD95−, CD27+, CD28+, CD127+, CD11alow, CD122−, Poorly express IFNγ, IL-4 or IL-5 upon short-term (around ##5–12 h) stimulation
+
+## effectors CCR7 lo, CD62L lo, CD44 high, IL7R low, CD25 high, CD69 high, ID2 hi, KLRG1hi, granzyme B, perforin, antimicrobial cytokines or CD40L, any effector molecule
+
+## difference effectors and effector memory Effector T Cells 	Effector Memory 
+## effectors: CD127 (IL-7R𝛼) Low/Negative (ID2 hi, KLRG1hi)
+## effector memory: CD127hi, ID3 hi
+
+## SLEC (short-lived effector cell), also known as TE (terminal effector): CCR7−, CD45RA+, KLRG1+, TCF1low, T-bet hi, CX3CR1+, CD127low, CD27−, CD57+ (B3GAT1)
+## EEC (early effector cell) KLRG1low, CD127−, CXCR3+, T-bet+, TCF1low (= HNF1A), can produce IFNγ and TNF
+## LLEC (long-lived effector cell) KLRG1hi, CD127int, CX3CR1hi, granzyme Bhi
+
+## effector memory: CCR7 lo, CD62L lo, CD44 high, IL7R high, CD25 and CD69 lower than effectors, ID3 (memory precursors)
+
+## activated T cell: Transiently CD69+, CD25hi and KLF2low Often Ki67+, effector molecule+, HLA-DR+ and CD38hi (ENSG00000004468)
+
+## memory T cell: CD11a hi (ITGAL), CD95+ (FAS), CD58+, CD49d+ (= ITGA4)
+
+## Th9 PU.1 (= SPI1)
+
+## Tregs: FOXP3, CD25 high (=IL2RA), GITR(=TNFRSF18), CD127lo, CTLA4, HELIOS (=IKZF2)
+
+
+
+#pdf("heatmap marker genes scRNAseq PBMC.pdf", width = 8, height = 14) 
+avgHeatmap(seuratTcell, selGenes = genesPlot, annotation_colors = colclusterName)
+
+
+#avgHeatmap(seuratM, selGenes = selGenes, annotation_colors = colclusterName, show_significance = T, p_adjust_method = "BH", condition_by = #"pat_sub") #dev.off()
+
+#?avgHeatmap
+```
+
+
+```{r, fig.height = 10}
+selGenes <- data.frame(geneID=rev(c("GREM2", "IFNG", "TNF", "FGF9", "FGF1", "FGF23", "CXCL10", "IL21", "CX3CR1", "IL1B"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+DotPlot(seuratTcell, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="T") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x)) 
+
+selGenes <- data.frame(geneID=rev(c("GREM2", "IFNG", "TNF", "FGF9", "FGF1", "FGF23", "CXCL10", "IL21", "CX3CR1", "IL1B"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+
+avgHeatmap(seuratTcell, selGenes = selGenes, annotation_colors = colclusterName)
+
+```
+
+### Violin Plots
+#### by Cluster
+```{r}
+
+genes <- data.frame(gene=rownames(seuratTcell)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+#selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "IFNG", "TNF", "IL6", "IL17A", "CCR6", "CXCR3", "CXCL9", #"CXCL10", "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", "MET", "ENG", "BMPER", #"TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", "SHH", "RUNX2")) %>% 
+#  left_join(., genes, by="geneID")
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "NCAM1", "CD4", "CD3E", "CD3G", "TRAC", "IFNG", "TNF", "IL6", "CCR6", "CXCR3", "CXCL9", "CXCL10", "BMPR1A", "BMPR2", "HGF", "MET", "RUNX2", "TNFRSF1A")) %>% 
+left_join(., genes, by="geneID")
+
+
+Idents(seuratTcell) <- seuratTcell$clusterName
+
+for (x in selGenes$gene) {
+  print(VlnPlot(object = seuratTcell, features = x, pt.size = 0.1, cols = colclusterName))
+}
+
+###cols=colclusterName
+###p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+#saveRDS(seuratTcell, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq #PBMCs/Myocarditis_scRNAseq_GSEA_EMB_matched_scaling_02.03.2026.rds")
+
+```
+
+
+
+## Dotplot
+```{r, include = T}
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+gene_list <- rev(c("CD2", "CD3E", "CD4", "CD8B", "CCR7", "FAS", "IL7R", "SELL", "CD44", "RORA", "CXCR3", "CCR6","RORC", "TBX21", "GATA3", "FOXP3", "CD69", "CTLA4", "CD27", "CD28","ICOS", "CD40LG", "IFNG", "CXCR3", "ITGB1", "CXCL10", "TGFB1", "SLC4A10", "NCAM1", "GZMB", "CD38", "MKI67", "CLEC4C", "IL3RA", "CLEC9A", "IGHM","MS4A1", "JCHAIN"))
+
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap", label = T, repel = TRUE)
+
+
+
+genesPlot <- data.frame(gene= c("CD3D", "CD3E", "CD3G", "RORA", "CD69", "CD4", "IL7R", "FOS", "LTB", "SELL",  "GREM2", "FOXP3", "GATA3",   "ICOS", "CTLA4", "CD40LG", "TRDV1", "IFNG", "CD44",   "CXCR3", "PDCD1", "TRAV2", "CD8A", "CD8B",   "CD38","KIT", "KLRG1", "GZMB", "TBX21", "KLRB1", "NCAM1", "KLRD1", "TRGC1",  "FCGR3A", "TRGC2","SLC4A10", "CCR6", "RORC", "LY9", "CCR7",  "MS4A1", "HLA-DQB1", "CD79A", "CD79B", "CD19",  "MKI67", "IGHM", "JCHAIN", "TREM1","MCTP1", "CD14", "CSF1R", "CSF3R","S100A8", "CD163",  "SIGLEC1", "STAB1", "GREM1", "CLEC12A", "LYZ",  "CD68","CCR2", "APOE", "CXCL10", "TLR7", "IRF7", "LILRA4",  "CLEC4C", "IL3RA"))
+
+
+genesPlot <- data.frame(gene= c("CD3D", "CD3E", "CD3G", "RORA", "CD69", "CD4", "IL7R", "FOS", "LTB", "SELL", "GREM2", "FOXP3", "GATA3",   "ICOS", "CTLA4", "CD40LG", "TRDV1", "IFNG", "CD44", "CXCR3", "PDCD1", "TRAV2", "CD8A", "CD8B",   "CD38","KIT", "KLRG1", "KLRC2","KLRC2", "GZMB", "TBX21", "KLRB1", "NCAM1", "KLRD1", "TRGC1",  "FCGR3A", "TRGC2","SLC4A10", "TRAV1", "IKT", "CCR6", "RORC", "LY9", "CCR7",  "MS4A1", "HLA-DQB1", "CD79A", "CD19",  "IGHM", "JCHAIN", "TREM1","MCTP1", "CD14", "CSF1R", "CSF3R", "AZU", "S100A8", "S100A9", "CD163", "CD1C",  "SIGLEC1", "STAB1", "GREM1", "CLEC9A", "IGAM", "ITGAX",   "CLEC12A", "LYZ", "CSF3R" , "CD68","CCR2", "APOE", "CXCL10", "TLR7", "LILRA4",  "CLEC4C", "IL3RA", "IFIT1", "IFIT3", "MX1", "RSAD2", "IFI44", "ISG15", "OAS1","FOXP2","XCR1", "ITGAM", "ITGAX"))
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x))
+
+
+```
+
+
+```{r, include = T}
+selGenes <- data.frame(geneID=rev(c("CD3D", "RORA", "CD69", "CD4", "IL7R", "FOS", "LTB", "SELL", "GREM2", "FOXP3", "GATA3",  "ICOS", "CTLA4", "CD40LG", "TRDV1", "IFNG", "CD44", "CXCR3", "PDCD1", "TRAV2", "CD8A", "CD8B", "KLRG1", "KLRC2", "GZMB", "TBX21", "KLRB1", "NCAM1", "KLRD1", "TRGC1",  "FCGR3A", "TRGC2","SLC4A10", "TRAV1", "CCR6", "RORC", "LY9", "CCR7")))
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x))
+```
+
+
+```{r, include = T}
+selGenes <- data.frame(geneID=rev(c("CD3E", "CD8A", "CD4", "NCAM1", "TRGC1",  "FCGR3A", "TRGC2","SLC4A10", "TRAV1", "CCR6", "RORC", "LY9", "CCR7"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x)) 
+
+
+selGenes <- data.frame(geneID=rev(c("IGHD", "IGHG3", "IGHA1", "CCR7",  "MS4A1", "HLA-DQB1", "CD79A", "CD79B", "IGHM", "CD69", "CD40", "CD27"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip()
+
+
+selGenes <- data.frame(geneID=rev(c("CD14", "FCGR3A", "CD206", "CD163", "CD1C",  "SIGLEC1", "STAB1", "GREM1", "CLEC9A", "CLEC12A", "LYZ", "CSF3R" , "CD68","CCR2", "APOE", "CXCL10", "TLR7", "LILRA4",  "CLEC4C", "IL3RA", "IFIT1", "IFIT3", "MX1", "RSAD2", "IFI44", "ISG15", "XCR1", "ITGAM", "ITGAX", "THBD"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x)) 
+
+
+selGenes <- data.frame(geneID=rev(c("CD2", "CD3E", "CD4", "CD8A", "CD8B", "FOXP3", "GREM2", "CCR7", "FAS", "IL7R", "SELL", "CD44", "CXCR3", "CCR6","RORC", "NCAM1", "TRDC1", "FCGR3A", "CD14", "CD163", "CD68", "LYVE1", "HLA-DMB", "MRC1", "SIGLEC1", "STAB1", "CSF1R", "MERTK","AXL", "SEMA4A", "S100A9", "S100A8", "MMP8", "ELANE", "CXCR8", "PDCD1", "TRAV1-2", "IKT", "ZBTB16"
+))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip()
+
+
+```
+
+
+```{r, include = T}
+
+Idents(seuratM) <- seuratM$clusterName
+# Selected genes for DotPlot
+selGenes <- data.frame(geneID=rev(c("CD2", "CD3E", "CD4", "CD8A", "CD8B", "CCR7", "FAS", "IL7R", "SELL", "CD44", "CXCR3", "CCR6","RORC", "TBX21", "GATA3", "FOXP3", "CXCR5", "CD69", "CTLA4", "CD27", "ICOS", "CD40LG", "IFNG", "ITGB1", "CXCL10", "TGFB1", "ID2", "ID3", "IL15RA", "TOX", "ITGAE", "TRAC", "SLC4A10", "TRDC1", "IGHD", "IGHM","MS4A1", "JCHAIN", "GZMB", "PRF1",  "PDCD1", "MKI67", "CLEC4C", "IL3RA", "CLEC9A", "ZBTB16", "KLRD1","NCAM1", "FCGR3A", "CD14", "CD163", "CD68", "LYVE1", "HLA-DMB", "MRC1", "SIGLEC1", "STAB1", "CSF1R", "MERTK","AXL", "SEMA4A", "S100A9", "S100A8", "MMP8", "ELANE", "CXCR8", "ITGAX", "ITGAM"))) %>% left_join(., genes, by="geneID") %>% filter(gene != "ENSG00000232995.RGS5")
+
+
+
+DotPlot(seuratM, features = selGenes$gene) + RotatedAxis() + scale_color_viridis(option="F") + coord_flip() + RotatedAxis()  +  scale_x_discrete(labels = function(x) sub(".*\\.", "", x)) 
+
+#Idents(seuratM) <- seuratM$clusterName
+#DotPlot(seuratM, features = selGenes$gene) #+ RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+
+#DotPlot(seuratM, features = selGenes$gene, group.by= "sample") + RotatedAxis() + scale_color_viridis(option="T") + coord_flip()
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+DimPlot(seuratM, reduction = "umap", label = T, repel = TRUE)
+
+
+```
+
+```{r}
+table(seuratM$orig.ident)
+```
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = F, repel = TRUE, cols = colclusterName) 
+
+
+```
+
+```{r, include = F}
+
+seuratM <- subset(seuratM, !clusterName %in% c("Doublet"))
+
+table(seuratM$orig.ident)
+
+table(seuratM$clusterName)
+
+```
+
+```{r, echo = F}
+#saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged scRNAseq #PBMCs/Myocarditis_scRNAseq_PBMCs_EMB_matched_scaling_02.03.2026_annotated.rds")
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+# cells that have GREM2 expression > 0 
+gene_name <- "ENSG00000180875.GREM2"
+pos_cells <- WhichCells(seuratM, expression = !!sym(gene_name) > 0)
+
+seurat_pos <- subset(seuratM, cells = pos_cells)
+
+## Violin plots show only cells with non-zero expression.
+VlnPlot(seurat_pos, 
+        features = gene_name, 
+        pt.size = 0.5, 
+        group.by = "clusterName", cols = colclusterName) + 
+  ggtitle(paste("GREM2 Expression")) +
+  ylab("Log-Normalized Expression") + NoLegend()
+
+
+Idents(seuratM) <- seuratM$clusterName
+VlnPlot(seuratM, features = ENSG00000067182.TNFRSF1A)
+
+
+```
+
+
+```{r}
+
+#seuratM <- subset(seuratM, !clusterName %in% c("Doublet"))
+
+table(seuratM$clusterName)
+
+table(seuratM$orig.ident)
+
+```
+
+
+## Feature Plots T cells
+```{r, CD3 feature plots}
+get_full_gene_name <- function(gene, obj){
+  return(grep(gene,rownames(obj), value =TRUE))
+}
+get_full_gene_name("BMP4",seuratM) 
+
+
+FeaturePlot(seuratM, features = "ENSG00000081237.PTPRC", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000168685.IL7R", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000081237.PTPRC", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000168685.IL7R", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD3E",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD3D",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD3G",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000010610.CD4", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD8A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000172116.CD8B", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD40L",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Tfh
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD28",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000163600.ICOS", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CCR7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("SELL",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD44",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("GREM2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("GREM1",seuratM) , pt.size = 1.5, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = "ENSG00000178562.CD28", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000139193.CD27", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+```
+
+
+
+
+## Feature Plots T helper subsets
+
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+FeaturePlot(seuratM, features = get_full_gene_name("TBX21",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Th1
+FeaturePlot(seuratM, features = "ENSG00000111537.IFNG", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000027697.IFNGR1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000159128.IFNGR2", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+	
+
+FeaturePlot(seuratM, features = get_full_gene_name("CXCR3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("STAT4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("IL12RB1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#
+FeaturePlot(seuratM, features = get_full_gene_name("FOXP3", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Tregs
+FeaturePlot(seuratM, features = "ENSG00000136634.IL10", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CXCR3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("GREM2", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CCR6", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("RORC", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("RORA", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000069667.RORA", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("IL22", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("STAT3", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("IL17RA", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("IL17A", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("GREM2", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("FOXP3", seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Tregs
+FeaturePlot(seuratM, features = "ENSG00000136634.IL10", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TGFB1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("GATA3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Th2
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD40L",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# Tfh
+
+FeaturePlot(seuratM, features = get_full_gene_name("IL21",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = "ENSG00000163600.ICOS", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CCR5",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("STAT1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("STAT2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("STAT3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("STAT4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+FeaturePlot(seuratM, features = get_full_gene_name("STAT5",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+
+```
+
+
+## B cells and plasma cells
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+FeaturePlot(seuratM, features = get_full_gene_name("CD79A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("CD79B",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = "ENSG00000211899.IGHM", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000211898.IGHD", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000137101.CD72", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("SELL",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CCR7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("HLA-DRB1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("BCL6",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CXCL5",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000156738.MS4A1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("BLNK",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# B cells
+FeaturePlot(seuratM, features = get_full_gene_name("JCHAIN",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#
+
+FeaturePlot(seuratM, features = "ENSG00000057657.PRDM1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IRF4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#  
+FeaturePlot(seuratM, features = get_full_gene_name("IFIT1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))#  
+
+
+```
+
+
+## Feature Plots Markers for activation, proliferation, exhaustion
+
+```{r, Activation and Inflammatory markers, proliferation feature plots}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+
+
+go_results <- list()
+
+# Loop cl0-15
+for (i in 0:17) {
+  # Subset DE genes for cluster i
+  cluster_genes <- markers %>% 
+    filter(cluster == as.character(i)) %>% 
+    pull(EnsID) %>% 
+    unique()
+
+
+  if (length(cluster_genes) > 0) {
+    ego <- enrichGO(gene = cluster_genes,
+                    OrgDb = org.Hs.eg.db,
+                    keyType = "ENSEMBL",
+                    ont = "BP",
+                    pAdjustMethod = "BH",
+                    pvalueCutoff = 0.05,
+                    qvalueCutoff = 0.05)
+
+   
+    ego <- setReadable(ego, OrgDb = org.Hs.eg.db)
+
+   
+    go_results[[paste0("Cluster_", i)]] <- ego
+
+   
+    barplot(ego, showCategory = 5, title = paste("Cluster", i), font.size = 14)
+  }
+}
+
+for (i in 0:20) {
+  cluster_name <- paste0("Cluster_", i)
+  ego <- go_results[[cluster_name]]
+
+  if (!is.null(ego) && nrow(ego@result) > 0) {
+   
+   print(barplot(ego,
+            showCategory = 20,
+            title = paste("Cluster", i),
+            font.size = 8))
+  } else {
+    message("GO terms for Cluster ", i)
+  }
+}
+
+```
+
+
+
+
+
+## activation and exhaustion markers
+
+```{r}
+
+
+FeaturePlot(seuratM, features = "ENSG00000090339.ICAM1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD69",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IFNGR1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000150093.ITGB1", pt.size = 1, cols = c("lightgrey", "#BE3144")) ## CD29
+
+FeaturePlot(seuratM, features = "ENSG00000138755.CXCL9", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000169245.CXCL10", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CXCL11",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CXCL8",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000019991.HGF", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000105976.MET", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = "ENSG00000136244.IL6", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000160712.IL6R", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IL1B",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000188389.PDCD1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("LAG3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TIGIT",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CTLA4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("MKI67",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TOP2A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+```
+
+
+## Feature Plots dendritic cells/myeloid
+
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+FeaturePlot(seuratM, features = "ENSG00000140678.ITGAX", pt.size = 1, cols = c("lightgrey", "#BE3144"))# CD11c
+FeaturePlot(seuratM, features = "ENSG00000090659.CD209", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("CLEC4A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CLEC9A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("SEPTIN3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("XCR1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+##pDC
+FeaturePlot(seuratM, features = get_full_gene_name("CLEC4C",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CCR9",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("PACSIN1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IRF7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TCF4",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+```
+
+## Feature Plots Monocytes
+
+```{r}
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+FeaturePlot(seuratM, features = "ENSG00000169896.ITGAM", pt.size = 1, cols = c("lightgrey", "#BE3144"))# CD11b
+
+FeaturePlot(seuratM, features = get_full_gene_name("HLA-DMB",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000196126.HLA-DRB1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000177575.CD163", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000129226.CD68", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000170458.CD14", pt.size = 1, cols = c("lightgrey", "#BE3144")) # CD14
+FeaturePlot(seuratM, features = "ENSG00000203747.FCGR3A", pt.size = 1, cols = c("lightgrey", "#BE3144")) # CD16
+FeaturePlot(seuratM, features = "ENSG00000169245.CXCL10", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = "ENSG00000182578.CSF1R", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("LYVE1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))# 
+
+FeaturePlot(seuratM, features = get_full_gene_name("CSF1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000185591.SP1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000121807.CCR2", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("SEMA4A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("AXL",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("CX3CR1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CCR7",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000123358.NR4A1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("DLL1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("MERTK",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("AXL",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("MRC1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = "ENSG00000088827.SIGLEC1", pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("BATF3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+```
+
+
+
+
+## Feature Plots other cells types (unconventional, NK, etc.)
+```{r }
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+## MAIT
+FeaturePlot(seuratM, features = get_full_gene_name("SLC4A10",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("IL23R",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("KLRB1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+##yd T cells
+
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRDC",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRGC1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRGC2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRDV1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRDV2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRBV",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRAV12-2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRGV9",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRGV",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TMEM132C",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("KIR3DL1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("BNC2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+## alpha beta
+FeaturePlot(seuratM, features = get_full_gene_name("TRAC",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRBC1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRBC2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+
+##from paper
+##TRDC, TRGC1, and TRGC2 were used to calculate γδTCR module scores, while TRAC, TRBC1, and TRBC2 were used to calculate αβTCR module scores (Supplementary Table 1). However, this model yielded poor accuracy and sensitivity, with 40.1% of genuine γδ T cells locating within the putative αβ T population, while 42.2% of putative γδ T cells by this classifier were genuine αβ T cells (Fig. 1B–D). To improve the efficiency of γδ T cells identification, TCR module scores were recalculated by introducing variable TCR genes (TRDV, TRGV, TRAV, and TRBV) together with the constant TCR genes (Supplementary Table 1). Using this strategy, the genuine γδ T cells formed a population with a high γδTCR module score and a low αβTCR module score,
+
+##
+```
+
+## NK and NKT FeaturePlots
+```{r }
+Idents(seuratM) <- seuratM$RNA_snn_res.0.15
+
+DimPlot(seuratM, reduction = "umap", label = TRUE)
+
+## NK and NKT
+FeaturePlot(seuratM, features = get_full_gene_name("FCGR3A",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("PRF1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("GZMB",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("KLRD1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("NCAM1",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("CD3E",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("TRAC",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+FeaturePlot(seuratM, features = get_full_gene_name("TRBC",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144"))
+
+FeaturePlot(seuratM, features = get_full_gene_name("ZBTB16",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) ##NKT
+```
+
+
+```{r }
+## Mast cells
+FeaturePlot(seuratM, features = get_full_gene_name("KIT",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) ## mast cells
+FeaturePlot(seuratM, features = get_full_gene_name("MS4A2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) ## mast cells
+```
+
+## Granulocytes/Myeloid FeaturePlots
+```{r}
+
+FeaturePlot(seuratM, features = get_full_gene_name("S100A6",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) ##
+## Neutrophils
+FeaturePlot(seuratM, features = get_full_gene_name("S100A9",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+FeaturePlot(seuratM, features = get_full_gene_name("CEACAM8",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+FeaturePlot(seuratM, features = get_full_gene_name("MPO",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+ FeaturePlot(seuratM, features = get_full_gene_name("MMP8",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+FeaturePlot(seuratM, features = get_full_gene_name("PRTN3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+FeaturePlot(seuratM, features = get_full_gene_name("ELANE",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil
+FeaturePlot(seuratM, features = "ENSG00000160255.ITGB2", pt.size = 1, cols = c("lightgrey", "#BE3144")) #neutrophil CD18
+
+## Basophils
+
+FeaturePlot(seuratM, features = get_full_gene_name("CPA3",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) # basoophil
+
+FeaturePlot(seuratM, features = "ENSG00000140287.HDC", pt.size = 1, cols = c("lightgrey", "#BE3144")) # basoophil
+
+
+
+
+## Eosinophils
+FeaturePlot(seuratM, features = "ENSG00000105205.CLC", pt.size = 1, cols = c("lightgrey", "#BE3144")) # eosinophils (Charco Leyden Crystal)
+FeaturePlot(seuratM, features = "ENSG00000091181.IL5RA", pt.size = 1, cols = c("lightgrey", "#BE3144")) 
+	
+
+FeaturePlot(seuratM, features = get_full_gene_name("PRG2",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #eosinophil, major basic protein
+
+#FeaturePlot(seuratM, features = get_full_gene_name("SIGLEC8",seuratM) , pt.size = 1, cols = c("lightgrey", "#BE3144")) #eosinophil
+
+
+```
+
+
+
+
+
+
+

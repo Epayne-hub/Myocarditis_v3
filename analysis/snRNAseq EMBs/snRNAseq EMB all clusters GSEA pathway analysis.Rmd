@@ -1,0 +1,1261 @@
+---
+title: "Pathways in Myocarditis"
+author: "EP"
+date: "2026-08-03"
+output: html_document
+---
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+
+
+
+```
+
+
+
+
+```{r}
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_onlyAM_23.02.26_filt_SCtransform_doubletremoval_annotated_cleaned_TCsubgroupsMetadata.rds")
+
+
+table(seuratM$orig.ident)
+table(seuratM$clusterName)
+```
+
+
+```{r}
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+
+
+seuratM$clusterName <- "clusterName"
+Idents(seuratM) <- seuratM$clusterName
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "0" )] <- "Fb"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "1" )] <- "Tcells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "2" )] <- "BEC1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "3" )] <- "PeriFb1"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "4" )] <- "CM"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "5" )] <- "InflMph"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "6" )] <- "ResMph"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "7" )] <- "Fb2" ## Doublet
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "8" )] <- "PeriFb2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "9" )] <- "BEC2"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "10" )] <- "NC"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "11" )] <- "VSMC"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "12" )] <- "Fb3" ## Doublet
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "13" )] <- "Bcells"
+seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "14" )] <- "NC"
+#seuratM$clusterName[which(seuratM$RNA_snn_res.0.25 %in% "15" )] <- "AdipoC" 
+
+
+#colclusterName <- c("#f4a582", "#e34a33", "#FEE08B", "#feb24c","#fff7bc", "#43a2ca", #"#355C7D","#3288BD","#a6bddb", "#a8ddb5", "#01665e", "#66C2A5", "#e5f5e0","#ece2f0","#253494", "#BEAED4", #"#67001f","#fde0dd","#B45B5C","#fa9fb5","#D53E4F")
+
+
+colclusterName <- c("#fcc5c0" ,"#f4a582", "#FEE08B", "#feb24c","#8c2d04", "#01665e", "#66C2A5", "#807dba", "#355C7D","#3288BD","#a6bddb", "red3", "#91003f")
+
+
+#016450
+
+names(colclusterName) <-c("CM", "Fb", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "NC",  "ResMph","InflMph", "Bcells", "Tcells")
+
+#colpat_sub<- c("#dfc27d","#BE3144","#355C7D", "#779d8d")
+
+seuratM$clusterName <- factor(seuratM$clusterName, levels=c("CM", "Fb", "PeriFb1", "PeriFb2", "VSMC", "BEC1", "BEC2", "NC",  "ResMph","InflMph", "Bcells", "Tcells"))
+
+Idents(seuratM) <- seuratM$RNA_snn_res.0.25
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE)
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = TRUE, repel = TRUE, cols = colclusterName)
+
+Idents(seuratM) <- seuratM$clusterName
+DimPlot(seuratM, reduction = "umap",label = F, repel = TRUE, cols = colclusterName)
+
+#table(seuratM$pat_sub)
+
+table(seuratM$orig.ident)
+```
+
+
+
+```{r}
+## DE Genes immune cells, find all markers, positive and negative
+
+Idents(seuratM) <- seuratM$clusterName
+DEGenes<- FindAllMarkers(seuratM, only.pos = T, logfc.threshold = 0.2) %>%
+                                      dplyr::filter(p_val_adj < 0.01)
+
+DEGenes <- DEGenes %>% 
+  mutate(Gene=gene) %>%
+  mutate(gene=gsub("^.*\\.", "", Gene))  %>%
+  mutate(EnsID=gsub("\\..*","", Gene))
+
+View(DEGenes)
+```
+
+
+```{r}
+DEGenesFb <- DEGenes %>% filter(cluster == "Fb")
+
+egoFb <- enrichGO(gene = unique(DEGenesFb$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoFb <- setReadable(egoFb, OrgDb = org.Hs.eg.db)
+
+
+dotplot(egoFb, showCategory=20, title = "Fb", font.size = 10)
+
+View(egoFb@result)
+
+# myeloid leukocyte differentiation, 	 positive regulation of chemotaxis, defense response to virus, regulation of wound healing, cellular response to virus, vasculogenesis, response to tumor necrosis factor, myeloid leukocyte migration, response to transforming growth factor beta, leukocyte chemotaxis, response to type II interferon, granulocyte chemotaxis, 	response to BMP, cellular response to BMP stimulus, regulation of BMP signaling pathway, regulation of integrin-mediated signaling pathway, 	 regulation of BMP signaling pathway, 	 regulation of cytokine-mediated signaling pathway, transforming growth factor beta receptor superfamily, response to chemokine, cellular response to chemokine, cellular response to fibroblast growth factor stimulus, cellular response to type II interferon, 	type II interferon-mediated signaling pathway, 	positive regulation of non-canonical NF-kappaB signal transduction, cellular response to interleukin-1, 	regulation of type I interferon-mediated signaling pathway, 	response to type I interferon, 	regulation of macrophage activation, cell adhesion mediated by integrin, tissue remodeling
+
+```
+
+
+
+```{r}
+DEGenesTcells <- DEGenes %>% filter(cluster == "Tcells")
+
+egoTcell <- enrichGO(gene = unique(DEGenesTcells$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoTcell <- setReadable(egoTcell, OrgDb = org.Hs.eg.db)
+
+
+dotplot(egoTcell, showCategory=20, title = "Tcell", font.size = 10)
+
+View(egoTcell@result)
+
+```
+
+
+```{r}
+DEGenesMph <- DEGenes %>% filter(cluster == "InflMph")
+
+egoMph <- enrichGO(gene = unique(DEGenesMph$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoMph <- setReadable(egoMph, OrgDb = org.Hs.eg.db)
+
+
+dotplot(egoMph, showCategory=20, title = "Inflammatory Macrophages", font.size = 10)
+
+View(egoMph@result)
+
+
+## 	 lymphocyte differentiation, T cell differentiation, 	
+#cell activation involved in immune response, regulation of Wnt signaling pathway, 	
+#regulation of canonical Wnt signaling pathway, 	
+#positive regulation of Wnt signaling pathway
+
+
+#regulation of canonical NF-kappaB signal transduction, 	positive regulation of NF-kappaB transcription factor activity, 
+#immune response-activating cell surface receptor signaling pathway, 		
+#response to reactive oxygen species regulation of lymphocyte differentiation, CD4-positive, alpha-beta T cell #differentiation, regulation of T cell receptor signaling pathway, CD4-positive, alpha-beta T cell #differentiation involved in immune response, T-helper cell differentiation	
+#cellular response to reactive oxygen species, response to hypoxia, regulation of reactive oxygen species metabolic process
+
+#alpha-beta T cell differentiation,
+#response to interleukin-1, 	interleukin-1-mediated signaling pathway
+#cellular response to interleukin-1 
+
+#regulation of TOR signaling, regulation of JNK cascade, 
+#B cell differentiation, regulation of T cell differentiation, lymphocyte activation involved in immune response, T-helper 17 type immune response, 	
+# (JAK2/CLEC7A/IL17RA/RORA/IL6R/JAK3/LOXL3/STAT5A/IL12RB1/NFKBID/EPHB2/CARD9/BATF/ASCL2/CLEC6A/TYK2/ZBTB7B/IL27RA/CD69/BRD2/ZC3H12A/SLAMF6/LY9/RC3H2/ARID5A/BRD4/IRF4/TRAF3IP2/JUNB/EP300/STAT3/RC3H1/MALT1/JAK1/IL6ST/NFKBIZ/IL23A/OPA1/NOTCH1/ENTPD7/LGALS1)
+
+#cell surface receptor signaling pathway via JAK-STAT
+	
+#T-helper 1 cell differentiation, T-helper 1 type immune response
+
+#T-helper 17 cell differentiation , regulation of T-helper 17 type immune response	
+#T cell lineage commitment
+
+#regulation of interleukin-2 production
+
+#response to type II interferon
+
+```
+
+```{r}
+DEGenesResMph <- DEGenes %>% filter(cluster == "ResMph")
+
+egoResMph <- enrichGO(gene = unique(DEGenesResMph$EnsID),
+                          OrgDb = org.Hs.eg.db,
+                          keyType = 'ENSEMBL',
+                          ont = "BP",
+                          pAdjustMethod = "BH",
+                          pvalueCutoff = 0.05,
+                          qvalueCutoff = 0.05)
+
+egoResMph <- setReadable(egoResMph, OrgDb = org.Hs.eg.db)
+
+
+dotplot(egoResMph, showCategory=20, title = "Resident Macrophages", font.size = 10)
+
+View(egoResMph@result)
+```
+
+
+
+```{r}
+## Convert seurat_immun to single cell experiment (sce)
+sce <- as.SingleCellExperiment(seuratM)
+genes <- data.frame(geneID=rownames(sce)) %>% mutate(gene=gsub(".*\\.", "", geneID))
+pal = colorRampPalette(c("#053061", "#2166ac", "#f7f7f7", "#f4a582","orange", "#d95f0e","#b2183c"))
+scale_fill_gradientn(colors = pal(101), na.value = "grey90")
+
+```
+
+```{r}
+## Subset healthy and convert seurat_Healthy to sce
+seuratInflamed <- subset(seuratM, Inflammation_status == "Inflamed")
+table(seuratInflamed$Inflammation_status)
+
+sceInflamed <- as.SingleCellExperiment(seuratInflamed)
+```
+
+```{r}
+seuratNonInflamed <- subset(seuratM, Inflammation_status == "Non-inflamed")
+table(seuratNonInflamed$Inflammation_status)
+
+sceNonInflamed <- as.SingleCellExperiment(seuratNonInflamed)
+```
+
+
+ ## myeloid leukocyte differentiation, 	 positive regulation of chemotaxis, defense response to virus, regulation of wound healing, cellular response to virus, vasculogenesis, response to tumor necrosis factor, myeloid leukocyte migration, response to transforming growth factor beta, leukocyte chemotaxis, response to type II interferon, granulocyte chemotaxis, 	response to BMP, cellular response to BMP stimulus, regulation of BMP signaling pathway, regulation of integrin-mediated signaling pathway, 	 regulation of BMP signaling pathway, 	 regulation of cytokine-mediated signaling pathway, transforming growth factor beta receptor superfamily, response to chemokine, cellular response to chemokine, cellular response to fibroblast growth factor stimulus, cellular response to type II interferon, 	type II interferon-mediated signaling pathway, 	positive regulation of non-canonical NF-kappaB signal transduction, cellular response to interleukin-1, 	regulation of type I interferon-mediated signaling pathway, 	response to type I interferon, 	regulation of macrophage activation, cell adhesion mediated by integrin, tissue remodeling
+ 
+```{r}
+
+table(seuratM$TC_group)
+
+## Subset healthy and convert seurat_Healthy to sce
+seuratTChigh <- subset(seuratM, TC_group == "Tcell High")
+table(seuratTChigh$TC_group)
+
+sceTChigh <- as.SingleCellExperiment(seuratTChigh)
+
+
+seuratTClow <- subset(seuratM, TC_group == "Tcell Low")
+table(seuratTClow$TC_group)
+
+sceTClow <- as.SingleCellExperiment(seuratTClow)
+
+```
+ 
+ 
+ 
+```{r}
+
+egoInt <- dplyr::filter(egoFb@result, egoFb@result$Description %in% c("response to type II interferon", "cellular response to type II interferon", "type II interferon-mediated signaling pathway"))
+
+## geneID extraction
+g0 <- egoInt$geneID
+Str <- unlist(strsplit(g0, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceTChighSub <- sceTChigh [which(rownames(sceTChigh) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceTChighSub@assays@data$logcounts)))/nrow(signGenes)
+sceTChighSub$sign <- cntMat
+sceTChighSub$sign2 <- sceTChighSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceTChighSub$sign2[which(sceTChighSub$sign > 1)] <- 1
+
+sceTChighSub <- sceTChigh [which(rownames(sceTChigh) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceTChighSub@assays@data$logcounts)))/nrow(signGenes)
+sceTChighSub$sign <- cntMat
+sceTChighSub$sign2 <- sceTChighSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceTChighSub$sign2[which(sceTChighSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceTChighSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+```
+```{r}
+egoInt <- dplyr::filter(egoTcell@result, egoTcell@result$Description %in% c("response to type II interferon", "cellular response to type II interferon", "type II interferon-mediated signaling pathway", "response to type II interferon","type II interferon-mediated signaling pathway", "type II interferon production", "regulation of type II interferon production","positive regulation of type II interferon production", "regulation of response to type II interferon",
+"regulation of type II interferon-mediated signaling pathway", "regulation of response to type II interferon"))
+
+
+## geneID extraction
+g0 <- egoInt$geneID
+Str <- unlist(strsplit(g0, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceInflamedSub <- sceInflamed [which(rownames(sceInflamed ) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceInflamedSub@assays@data$logcounts)))/nrow(signGenes)
+sceInflamedSub$sign <- cntMat
+sceInflamedSub$sign2 <- sceInflamedSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceInflamedSub$sign2[which(sceInflamedSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceInflamedSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+```
+
+
+```{r}
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+```
+
+```{r}
+egoBMP <- dplyr::filter(egoFb@result, egoFb@result$Description %in% c("response to BMP", "cellular response to BMP stimulus", "regulation of BMP signaling pathway",	 "regulation of BMP signaling pathway"))
+
+## geneID extraction
+g1 <- egoBMP$geneID
+Str <- unlist(strsplit(g1, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+##Inflamed, single cell experiment with high expression of Interferon type II signalling
+sceSub <- sce[which(rownames(sce) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceSub@assays@data$logcounts)))/nrow(signGenes)
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceSub$sign2[which(sceSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+```
+
+```{r}
+egoInterleukin1 <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("cellular response to interleukin-1", "response to interleukin-1", 	"interleukin-1-mediated signaling pathway", "positive regulation of interleukin-1 alpha production", "interleukin-1 alpha production", "regulation of interleukin-1 alpha production", "cellular response to interleukin-1", "interleukin-1 beta production", "	
+regulation of interleukin-1 beta production", "interleukin-1 production", "regulation of interleukin-1 production"))
+
+
+## geneID extraction
+g2 <- egoInterleukin1$geneID
+Str <- unlist(strsplit(g2, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+
+```
+####regulation of T cell differentiation, lymphocyte activation involved in immune response, T-helper 17 type immune response, 	
+ 
+cell surface receptor signaling pathway via JAK-STAT, T-helper 1 cell differentiation, T-helper 1 type immune response
+
+T-helper 17 cell differentiation , regulation of T-helper 17 type immune response	
+T cell lineage commitment
+```{r}
+
+egoTh17 <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("T-helper 17 type immune response", "T-helper 17 cell differentiation", "regulation of T-helper 17 type immune response", "positive regulation of T-helper 17 type immune response", "T-helper 17 cell lineage commitment", "response to interleukin-17", "cellular response to interleukin-17", "positive regulation of interleukin-17 production", "interleukin-17 production", "regulation of interleukin-17 production", "interleukin-17-mediated signaling pathway", "positive regulation of interleukin-17 production"))
+
+
+## geneID extraction
+g3 <- egoTh17$geneID
+Str <- unlist(strsplit(g3, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+```
+```{r}
+egoTh1 <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("cell surface receptor signaling pathway via JAK-STAT", "T-helper 1 cell differentiation", "T-helper 1 type immune response", "positive regulation of T-helper 1 type immune response","regulation of T-helper 1 cell differentiation" ))
+
+
+## geneID extraction
+g4 <- egoTh1$geneID
+Str <- unlist(strsplit(g4, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+```
+
+```{r}
+
+egoWnt <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("regulation of Wnt signaling pathway", "regulation of canonical Wnt signaling pathway", "positive regulation of Wnt signaling pathway"))
+
+
+## geneID extraction
+g5 <- egoWnt$geneID
+Str <- unlist(strsplit(g5, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+```
+
+
+
+```{r}
+## Filter lymphocyte differentiation T cell GSEA, redundant terms are listed 
+egoTdiff <- dplyr::filter(egoTcell@result, egoTcell@result$Description %in% c(
+  "T cell differentiation",
+  "lymphocyte differentiation",
+  "T cell receptor signaling pathway",
+  "alpha-beta T cell activation",
+  "T cell differentiation in thymus",
+  "T cell selection",
+  "positive regulation of T cell activation",
+  "alpha-beta T cell differentiation",
+  "positive regulation of lymphocyte activation",
+  "regulation of T cell differentiation",
+  "regulation of lymphocyte differentiation",
+  "positive T cell selection",
+  "lymphocyte proliferation",
+  "thymic T cell selection",
+  "T cell proliferation",
+  "CD4-positive, alpha-beta T cell activation",
+  "lymphocyte activation involved in immune response",
+  "T cell migration",
+  "T cell costimulation",
+  "alpha-beta T cell activation involved in immune response",
+  "alpha-beta T cell differentiation involved in immune response",
+  "CD4-positive, alpha-beta T cell differentiation",
+  "T cell differentiation involved in immune response",
+  "T-helper cell differentiation",
+  "regulation of lymphocyte proliferation",
+  "CD4-positive, alpha-beta T cell differentiation involved in immune response",
+  "positive regulation of T cell differentiation"))
+
+## geneID extraction
+g6 <- egoTdiff$geneID
+Str <- unlist(strsplit(g6, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+## umap of cells affected by T lymphocyte activation, proliferation and differentiation
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+```
+
+```{r}
+
+
+
+egoIL6 <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("interleukin-6-mediated signaling pathway", "negative regulation of interleukin-6-mediated signaling pathway", "cellular response to interleukin-6", "response to interleukin-6", "positive regulation of interleukin-6 production", "regulation of interleukin-6-mediated signaling pathway", "interleukin-6 production", "regulation of interleukin-6 production"))
+
+
+## geneID extraction
+g7 <- egoIL6$geneID
+Str <- unlist(strsplit(g7, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+```
+
+```{r}
+
+
+egoNFK <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("positive regulation of canonical NF-kappaB signal transduction", "regulation of canonical NF-kappaB signal transduction", "canonical NF-kappaB signal transduction", "positive regulation of non-canonical NF-kappaB signal transduction", "regulation of non-canonical NF-kappaB signal transduction", "non-canonical NF-kappaB signal transduction", "positive regulation of NF-kappaB transcription factor activity", "activation of NF-kappaB-inducing kinase activity"))
+
+
+## geneID extraction
+g8 <- egoNFK$geneID
+Str <- unlist(strsplit(g8, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+
+```
+
+
+
+```{r}
+egoIL10 <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("Interleukin-10-mediated signaling pathway", "positive regulation of interleukin-10 production", "interleukin-10 production", "regulation of interleukin-10 production" ))
+
+
+## geneID extraction
+g9 <- egoIL10$geneID
+Str <- unlist(strsplit(g9, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+
+
+
+```
+```{r}
+egoTGFb <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("response to transforming growth factor beta", "regulation of transforming growth factor beta production", "transforming growth factor beta receptor superfamily signaling pathway", "	
+transforming growth factor beta production", "positive regulation of transforming growth factor beta receptor signaling pathway", "positive regulation of cellular response to transforming growth factor beta stimulus", "negative regulation of transforming growth factor beta receptor signaling pathway", "regulation of transforming growth factor beta1 production", "regulation of transforming growth factor beta receptor signaling pathway", "regulation of cellular response to transforming growth factor beta stimulus", "transforming growth factor beta1 production", "positive regulation of transforming growth factor beta production", "transforming growth factor beta receptor signaling pathway", "cellular response to transforming growth factor beta stimulus" ))
+
+
+## geneID extraction
+g10 <- egoTGFb$geneID
+Str <- unlist(strsplit(g10, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+```
+
+```{r}
+
+
+
+egohypoxia <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("cellular response to reactive oxygen species", "response to hypoxia", "regulation of reactive oxygen species metabolic process", "regulation of cellular response to hypoxia"))
+
+
+## geneID extraction
+g11 <- egohypoxia$geneID
+Str <- unlist(strsplit(g11, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+
+```
+
+```{r}
+
+
+egoTNF <- dplyr::filter(egoMph@result, egoMph@result$Description %in% c("positive regulation of tumor necrosis factor production", "positive regulation of tumor necrosis factor-mediated signaling pathway", "regulation of tumor necrosis factor-mediated signaling pathway", "positive regulation of tumor necrosis factor superfamily cytokine production"))
+
+
+## geneID extraction
+g12 <- egoTNF$geneID
+Str <- unlist(strsplit(g12, "/"))
+df <- as.data.frame(Str)
+colnames(df) <- c("gene")
+
+## signature Genes in count matrix
+signGenes <- genes %>% dplyr::filter(gene %in% df$gene)
+if (nrow(signGenes) == 0) stop("No signature genes found.")
+
+## sce object for signature genes
+sceSub <- sce[rownames(sce) %in% unique(signGenes$geneID), ]
+if (nrow(sceSub) == 0) stop("No matching genes found in sce.")
+
+## gene signature matrix
+cntMat <- rowSums(t(as.matrix(sceSub@assays@data$logcounts))) / nrow(signGenes)
+if (length(cntMat) != ncol(sceSub)) stop("Mismatch between cntMat and sceSub dimensions.")
+
+sceSub$sign <- cntMat
+sceSub$sign2 <- sceSub$sign
+
+sceSub$sign2[which(sceSub$sign > 2)] <- 2
+
+
+## umap of cells affected by Interferon type II
+sc <- scale_colour_gradientn(colours = pal(100), limits = c(0, 2))
+plotUMAP(sceSub, colour_by = "sign2", point_size = 0.5) + sc
+
+## AM all, single cell experiment with high expression of Interferon type II signalling
+sceAMSub <- sceAM[which(rownames(sceAM) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceAMSub@assays@data$logcounts)))/nrow(signGenes)
+sceAMSub$sign <- cntMat
+sceAMSub$sign2 <- sceAMSub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceAMSub$sign2[which(sceAMSub$sign > 1)] <- 1
+
+#pdf("umap_AM_lymph diff.pdf", width = 8, height = 6) 
+plotUMAP(sceAMSub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+sceHealthySub <- sceHealthy[which(rownames(sceHealthy) %in% signGenes$geneID),]
+cntMat <- rowSums(t(as.matrix(
+    sceHealthySub@assays@data$logcounts)))/nrow(signGenes)
+sceHealthySub$sign <- cntMat
+sceHealthySub$sign2 <- sceHealthySub$sign
+##check max and min values
+##max(sceSub$sign)
+sc <- scale_colour_gradientn(colours = pal(100), limits=c(0, 1))
+sceHealthySub$sign2[which(sceHealthySub$sign > 1)] <- 1
+
+#pdf("umap_lymph diff healthy.pdf", width = 8, height = 6) 
+plotUMAP(sceHealthySub, colour_by = "sign2", point_size = 0.5) + sc +
+  theme(legend.position = "none")
+#dev.off()
+
+
+
+```
+

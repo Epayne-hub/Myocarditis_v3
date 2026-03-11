@@ -1,0 +1,2194 @@
+---
+title: "Immune cells EMB MiloR"
+author: "EP"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include = FALSE, fig.path = "custom/path", warning = FALSE, message = FALSE}
+
+options (width = 100)
+knitr::opts_chunk$set(warning = FALSE, echo = TRUE, message = FALSE, dev = c("png", "pdf"))
+seed <- 1234
+
+```
+
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+
+#library(ExploreSCdataSeurat3)
+#library(runSeurat3)
+library(Seurat)
+library(ggpubr)
+library(pheatmap)
+library(SingleCellExperiment)
+library(dplyr)
+library(tidyverse)
+library(viridis)
+library(muscat)
+library(circlize)
+library(destiny)
+library(scater)
+library(metap)
+library(multtest)
+library(clusterProfiler)
+library(msigdbr)
+library(enrichplot)
+library(DOSE)
+library(grid)
+library(gridExtra)
+library(ggupset)
+library(VennDiagram)
+library(NCmisc)
+library(shiny)
+library(org.Hs.eg.db)
+library(EnhancedVolcano)
+library(ImmunoLogic)
+library(presto)
+library(miloR)
+library(patchwork)
+library(tibble)
+
+```
+
+
+```{r}
+#seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/EMB_Myocarditis_Immunecell_GSEA_logtransform.rds")
+
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_Immunecells_GSEA_logtransform_annotated_07_03_2026.rds")
+
+table(seuratM$orig.ident)
+table(seuratM$clusterName)
+```
+
+```{r}
+seuratTcell <- subset(seuratM, clusterName %in% c("CD4+ TEM", "Regulatory T cells", "TCM", "CD8+ TEM", "activated CD8+ T cell", "NK cells",  "innate-like T"))
+
+table(seuratTcell$orig.ident)
+
+table(seuratTcell$clusterName)
+```
+
+
+```{r}
+seuratM <- seuratTcell
+```
+
+```{r}
+#https://hbctraining.github.io/Pseudobulk-for-scRNAseq/lessons/08a_miloR.html
+```
+
+
+```{r}
+sce <- as.SingleCellExperiment(seuratTcell)
+
+# single-cell experiment is converted into a Milo object
+milo_obj <- Milo(sce)
+
+# KNN graph
+milo_obj <- buildGraph(milo_obj, k = 30, d = 30, transposed = TRUE)
+
+#  Neighborhoods (representative groups of cells)
+# prop = 0.1 means we sample 10% of cells to act as neighborhood centers
+milo_obj <- makeNhoods(milo_obj, prop = 0.1, k = 30, d = 30, refined = TRUE)
+
+plotNhoodSizeHist(milo_obj)
+
+# how many neighborhoods were created
+milo_obj
+
+
+```
+
+
+```{r}
+# how many cells from each Sample fall into each neighborhood
+milo_obj <- countCells(milo_obj, 
+                       meta.data = as.data.frame(colData(milo_obj)), 
+                       sample = "sample") 
+
+# distances between neighborhoods
+milo_obj <- calcNhoodDistance(milo_obj, d = 30)
+
+nhoodCounts(milo_obj) %>% head()
+
+```
+
+
+```{r}
+# Design matrix
+milo_design <- data.frame(colData(milo_obj))[, c("sample", "Inflammation_status")] %>% 
+  distinct() %>% 
+  tibble::remove_rownames() %>%        
+  tibble::column_to_rownames("sample")
+
+table(seuratM$Inflammation_status)
+
+# Differential abundance of neighbourhoods according to inflammation status
+da_results <- testNhoods(milo_obj, 
+                         design = ~ Inflammation_status,  
+                         design.df = milo_design)
+
+head(da_results)
+
+View(da_results)
+```
+
+
+
+## Differential abundance inflamed vs. non inflamed
+```{r}
+
+# network layout for plotting
+milo_obj <- buildNhoodGraph(milo_obj)
+
+# Differential Abundance Graph
+da_plot <- plotNhoodGraphDA(milo_obj, 
+                            da_results, 
+                            layout = "UMAP", 
+                            alpha = 0.1)     # Transparency threshold for significance
+
+da_plot + 
+  ggtitle("Differential Abundance: Inflamed vs. non inflamed") +
+  theme_classic()
+
+```
+
+
+
+
+
+```{r}
+
+# Group the neighborhoods, unbiased clustering
+## max.lfc.delta = Maximum Log-Fold Change Difference.
+#By default, Milo groups neighborhoods together if they physically overlap on the UMAP. However, sometimes two overlapping #neighborhoods are doing completely different things biologically (e.g., one is expanding in inflammation logFC = +2, and #one is shrinking logFC = -2).
+
+# max.lfc.delta = x, looks at the logFC of every neighborhood. If the difference in logFC between two touching #neighborhoods is greater than x, it cuts the connection and forces them into separate groups. Thelower the max.lfc.delta, the more groups
+## other method: resolution = 0.2 -> lower resolution means fewer groups
+
+#The Unit: The unit is Log2 Fold Change (the exact same unit as your DA test results).
+
+set.seed(1234)
+da_results <- groupNhoods(milo_obj, 
+                          da.res = da_results, da.fdr = 0.1, overlap = 10, subset.nhoods = TRUE,
+                          max.lfc.delta = NULL)
+
+## overlap (Default = 1):overlap of 10 means: Must share 10 cells to group, this is the minimum number of cells two neighborhoods must share to be grouped together. If you #increase this (e.g., overlap = 5 or 10), Milo cuts the connections between loosely touching neighborhoods. This breaks #massive groups into smaller, distinct clusters.
+## A scalar integer that determines the number of cells that must overlap between adjacent neighbourhoods for merging.
+
+## default logfold change = NULL; clusteres according to physical Overlap: Do the neighborhoods share cells? (Controlled by the overlap parameter).Concordance: Are they changing in the same direction? (e.g., both are significantly expanding in Inflammation, or both are shrinking).
+
+#da_results$NhoodGroup <- factor(da_results$NhoodGroup, levels = c("1", "2", "3", "4"))
+
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/MiloR_EMB_Tcell_neighbourhood.pdf")
+plotNhoodGroups(milo_obj, da_results) + 
+  ggtitle("Neighborhood Groups") +
+  theme_classic()
+#dev.off()
+
+## cells are in the colData(milo_obj), Neighborhoods are in da_results
+
+```
+```{r}
+milo_plot_obj <- milo_obj
+rownames(milo_plot_obj) <- gsub(".*\\.", "", rownames(milo_plot_obj))
+
+short_markers <- c("CD8B", "CD4", "IL7R", "SELL", "CD69" ,"GZMB", "IL1B", "IL6", "IFNG", "TBX21","CXCR3",  "RORC", "CCR6", "IFNAR1", "IFNB", "TNF", "CD40LG", "GREM2")
+
+
+
+valid_markers <- short_markers[short_markers %in% rownames(milo_plot_obj)]
+
+p_dotplot <- plotNhoodExpressionGroups(milo_plot_obj, 
+                                       da.res = da_results, 
+                                       features = valid_markers,
+                                       scale = TRUE,            
+                                       grid.space = "fixed") +  
+  ggtitle("Marker Expression") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+#pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/MiloR_EMB_Tcell_neighbourhood_dotplotv3.pdf", width = 11, height = 7)
+p_dotplot
+#dev.off()
+
+p_dotplot <- plotNhoodExpressionGroups(
+  milo_plot_obj,
+  da.res = da_results,
+  features = valid_markers,
+  scale = T,
+  grid.space = "fixed") +
+  ggtitle("Marker Expression") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+p_dotplot
+
+
+
+p_umap <- plotNhoodGroups(milo_obj, da_results) + 
+  ggtitle("T cell Neighbourhoods") +
+  theme_classic()
+
+p_umap 
+
+p_dotplot
+
+
+
+```
+
+
+```{r}
+
+head(valid_markers, 20)
+
+sum(valid_markers %in% rownames(expr_mat))
+grep("IL1|TNF|CXCL|CCL", rownames(expr_mat), value = TRUE)[1:20]
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# 1. Extract expression matrix
+expr_mat <- nhoodExpression(milo_plot_obj)
+
+# Check what it is
+class(expr_mat)
+dim(expr_mat)
+head(rownames(expr_mat))
+head(colnames(expr_mat))
+
+# 2. Keep only markers that are actually present
+final_markers <- valid_markers[valid_markers %in% rownames(expr_mat)]
+print(final_markers)
+
+if (length(final_markers) == 0) {
+  stop("None of the markers were found in expr_mat rownames.")
+}
+
+# 3. Subset safely
+subset_expr <- expr_mat[final_markers, , drop = FALSE]
+
+# Force to matrix only after successful subsetting
+subset_expr <- as.matrix(subset_expr)
+
+# Check it exists and looks right
+class(subset_expr)
+dim(subset_expr)
+print(subset_expr[1:min(5, nrow(subset_expr)), 1:min(5, ncol(subset_expr))])
+
+# 4. Build long dataframe
+plot_df <- as.data.frame(t(subset_expr))
+plot_df$Nhood <- rownames(plot_df)
+
+plot_df <- plot_df %>%
+  pivot_longer(
+    cols = -Nhood,
+    names_to = "Gene",
+    values_to = "Expression"
+  )
+
+# 5. Join metadata
+da_meta <- da_results %>%
+  mutate(Nhood = as.character(Nhood)) %>%
+  select(Nhood, NhoodGroup, logFC)
+
+plot_df <- plot_df %>%
+  mutate(Nhood = as.character(Nhood)) %>%
+  left_join(da_meta, by = "Nhood") %>%
+  filter(!is.na(NhoodGroup))
+
+# 6. Summarize
+summary_df <- plot_df %>%
+  group_by(NhoodGroup, Gene) %>%
+  summarize(
+    AvgExp = mean(Expression, na.rm = TRUE),
+    PctExp = mean(Expression > 0, na.rm = TRUE) * 100,
+    .groups = "drop"
+  ) %>%
+  mutate(Gene = factor(Gene, levels = final_markers))
+
+# 7. Plot
+ggplot(summary_df, aes(x = Gene, y = NhoodGroup)) +
+  geom_point(aes(size = PctExp, color = AvgExp)) +
+  scale_color_gradientn(
+    colors = c("grey90", "orange", "red3", "darkred"),
+    name = "Avg\nExpression"
+  ) +
+  scale_size_continuous(range = c(2, 10), name = "% Nhoods\nExpressing") +
+  theme_bw(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, face = "italic", color = "black"),
+    axis.text.y = element_text(color = "black"),
+    panel.grid.major = element_line(color = "grey95"),
+    legend.position = "right"
+  ) +
+  labs(
+    title = "Inflammatory Cytokines per Neighborhood Group",
+    x = "Cytokine / Marker",
+    y = "Neighborhood Group"
+  )
+```
+
+
+
+
+
+
+
+```{r}
+View(Milo_markers)
+
+Milomarkers <- da_results$Nhood[da_results$SpatialFDR < 0.1 & da_results$logFC > 0]
+
+# 2. Find markers specifically for those expanding neighborhoods
+# This compares the cells in the DA neighborhoods against all other cells
+nhood_markers <- findNhoodMarkers(milo_obj, 
+                                  da.res = da_results, 
+                                  assay = "logcounts", 
+                                  overlap = 11,
+                                  da.fdr = 0.1) 
+
+# 3. View the top genes driving the DA neighborhoods
+head(nhood_markers[order(nhood_markers$adj.P.Val, -nhood_markers$logFC), ])
+
+
+
+```
+
+
+
+
+```{r}
+# Load all required libraries
+library(ggplot2)
+library(miloR)
+library(patchwork)
+library(dplyr)
+library(Seurat)
+library(fgsea)
+library(msigdbr)
+
+
+da_clean <- as.data.frame(da_results)
+da_clean$NhoodGroup <- as.character(da_clean$NhoodGroup)
+
+da_clean$NhoodGroup <- case_when(
+  da_clean$NhoodGroup == "1" ~ "Tm",
+  da_clean$NhoodGroup == "2" ~ "Th1 Tem/ydT cells/NKT",
+  da_clean$NhoodGroup == "3" ~ "activated CD8+ T cells",
+  da_clean$NhoodGroup == "4" ~ "Th17 Tem",
+  da_clean$NhoodGroup == "5" ~ "CD8+ Tem",
+  da_clean$NhoodGroup == "6" ~ "CD8+ Tm",
+  da_clean$NhoodGroup == "7" ~ "NK cells",
+  da_clean$NhoodGroup == "8" ~ "Regulatory T cells",
+  da_clean$NhoodGroup == "9" ~ "Tcm",
+  TRUE ~ "Unannotated/Mixed"
+)
+
+# 2. Plot the UMAP (Letting ggplot pick the colors automatically)
+p_umap <- plotNhoodGroups(milo_obj, da_clean) + 
+  ggtitle("Annotated Milo Neighborhoods") +
+  theme_classic()
+
+# 3. Plot the Marker DotPlot
+milo_plot_obj <- milo_obj
+rownames(milo_plot_obj) <- gsub(".*\\.", "", rownames(milo_plot_obj))
+
+short_markers <- c("CD8B", "CD4", "IL7R", "CD69" ,"GZMB", "RORC", "CCR6", "IFNG", "IL6", "TNF", "IL1B", "SLC4A10")
+valid_markers <- short_markers[short_markers %in% rownames(milo_plot_obj)]
+
+p_dotplot <- plotNhoodExpressionGroups(milo_plot_obj, 
+                                       da.res = da_clean, 
+                                       features = valid_markers,
+                                       scale = TRUE,            
+                                       grid.space = "fixed") +  
+  ggtitle("Marker Expression") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Show Milo plots side-by-side
+p_umap 
+ p_dotplot
+
+
+```
+```{r}
+
+table(seuratTcell$clusterName)
+
+# 1. Fetch the Human Hallmark Gene Sets using msigdbr
+hallmark_genes <- msigdbr(species = "Homo sapiens", category = "H")
+pathways_list <- split(x = hallmark_genes$gene_symbol, f = hallmark_genes$gs_name)
+
+# Clean up pathway names for the plot (remove "HALLMARK_" prefix)
+names(pathways_list) <- gsub("HALLMARK_", "", names(pathways_list))
+
+# 2. Make sure your Seurat object identities are set to your target clusters
+Idents(seuratM) <- "clusterName" 
+
+# 3. Calculate markers for ALL clusters (logfc.threshold = 0 is REQUIRED for GSEA ranking)
+# This might take a minute depending on cell count
+seurat_markers <- FindAllMarkers(seuratM, 
+                                 only.pos = FALSE,     # We need down-regulated genes too
+                                 min.pct = 0.1, 
+                                 logfc.threshold = 0)  # Ranks every single gene
+
+# 4. Clean the gene names (strip ENSG prefixes so they match the Hallmark list)
+seurat_markers$gene_clean <- gsub(".*\\.", "", seurat_markers$gene)
+
+# 5. Run fgsea sequentially for each cluster
+gsea_results_list <- lapply(cluster_names, function(clust) {
+  
+  # 1. Extract and clean data for this cluster
+  clust_data <- seurat_markers[seurat_markers$cluster == clust, ]
+  
+  # 2. COLLAPSE DUPLICATES: Keep the row with the max absolute log2FC for each gene symbol
+  clust_data_unique <- clust_data %>%
+    group_by(gene_clean) %>%
+    slice_max(order_by = abs(avg_log2FC), n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  # 3. Create the ranked vector
+  ranks <- clust_data_unique$avg_log2FC
+  names(ranks) <- clust_data_unique$gene_clean
+  
+  # 4. Sort and run fgsea
+  ranks <- sort(ranks, decreasing = TRUE)
+  
+  res <- fgsea(pathways = pathways_list, 
+               stats = ranks, 
+               minSize = 15, 
+               maxSize = 500)
+  
+  res$cluster <- clust
+  return(res)
+})
+
+
+gsea_df <- bind_rows(gsea_results_list)
+
+View(gsea_df)
+
+# top 3 most significant pathways per cluster 
+top_pathways <- gsea_df %>%
+  filter(padj < 0.05) %>%
+  group_by(cluster) %>%
+  slice_max(n = 10, order_by = abs(NES)) %>%
+  pull(pathway) %>%
+  unique()
+
+plot_data <- gsea_df %>%
+  filter(pathway %in% top_pathways)
+
+# Create a beautiful GSEA DotPlot
+p_gsea <- ggplot(plot_data, aes(x = cluster, y = pathway)) +
+  geom_point(aes(size = -log10(padj), fill = NES), shape = 21, color = "black") +
+  # Red for Upregulated pathways, Blue for Downregulated pathways
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0, name = "NES") +
+  scale_size_continuous(range = c(2, 8), name = "-log10(p-adj)") +
+  ggtitle("Hallmark GSEA per Seurat Cluster") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 11),
+    axis.text.y = element_text(size = 10),
+    panel.grid.major = element_line(color = "grey90")
+  ) +
+  labs(x = "Cell Cluster", y = "Hallmark Pathway")
+
+# Print the final GSEA plot
+print(p_gsea)
+
+
+```
+
+```{r}
+library(msigdbr)
+library(fgsea)
+library(dplyr)
+library(ggplot2)
+
+# 1. Fetch Hallmark Gene Sets
+hallmark_genes <- msigdbr(species = "Homo sapiens", category = "H")
+pathways_list <- split(x = hallmark_genes$gene_symbol, f = hallmark_genes$gs_name)
+names(pathways_list) <- gsub("HALLMARK_", "", names(pathways_list))
+
+# 2. Get Seurat Markers (Assuming you already ran FindAllMarkers with logfc.threshold = 0)
+seurat_markers$gene_clean <- gsub(".*\\.", "", seurat_markers$gene)
+
+# 3. Run fgsea safely
+cluster_names <- unique(seurat_markers$cluster)
+
+gsea_results_list <- lapply(cluster_names, function(clust) {
+  
+  # Extract genes for this cluster
+  clust_data <- seurat_markers[seurat_markers$cluster == clust, ]
+  
+  # --- THE FIX: Aggregate duplicate gene names by taking the mean logFC ---
+  clust_data <- clust_data %>%
+    group_by(gene_clean) %>%
+    summarize(avg_log2FC = mean(avg_log2FC, na.rm = TRUE)) %>%
+    ungroup()
+  
+  # Create ranked vector
+  ranks <- clust_data$avg_log2FC
+  names(ranks) <- clust_data$gene_clean
+  ranks <- sort(ranks, decreasing = TRUE)
+  
+  # Run fgsea
+  res <- fgsea(pathways = pathways_list, stats = ranks, minSize = 15, maxSize = 500)
+  res$cluster <- clust
+  return(res)
+})
+
+# Combine and plot
+gsea_df <- bind_rows(gsea_results_list)
+
+top_pathways <- gsea_df %>%
+  filter(padj < 0.05) %>%
+  group_by(cluster) %>%
+  slice_max(n = 3, order_by = abs(NES)) %>%
+  pull(pathway) %>% unique()
+
+plot_data <- gsea_df %>% filter(pathway %in% top_pathways)
+
+# GSEA DotPlot
+ggplot(plot_data, aes(x = cluster, y = pathway)) +
+  geom_point(aes(size = -log10(padj), fill = NES), shape = 21, color = "black") +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  scale_size_continuous(range = c(2, 8)) +
+  ggtitle("Hallmark GSEA per Seurat Cluster") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+library(Seurat)
+
+# 1. Extract the Inflammatory Response genes from the msigdbr object
+inflam_genes <- hallmark_genes %>%
+  filter(gs_name == "HALLMARK_INFLAMMATORY_RESPONSE") %>%
+  pull(gene_symbol)
+
+# 2. Match them safely to your Seurat object's rownames
+all_genes <- rownames(seuratTcell)  # Replace seuratTcell with seuratM if needed
+clean_genes <- gsub(".*\\.", "", all_genes)
+actual_inflam_genes <- all_genes[clean_genes %in% inflam_genes]
+
+# 3. Calculate the Pathway Score per cell
+seuratTcell <- AddModuleScore(seuratTcell, 
+                              features = list(actual_inflam_genes), 
+                              name = "Pathway_Inflammatory_")
+
+# 4. Transfer the score to the Milo Object
+# Seurat adds a "1", so the column is "Pathway_Inflammatory_1"
+colData(milo_obj)$Inflammatory_Score <- seuratTcell$Pathway_Inflammatory_1
+
+# 5. Plot the Pathway Score on the Milo Neighborhoods!
+plotNhoodGraph(milo_obj, 
+               colour_by = "Inflammatory_Score", 
+               layout = "UMAP") + 
+  scale_fill_gradient2(low = "#053061", mid = "#f7f7f7", high = "#67001f", 
+                       midpoint = mean(colData(milo_obj)$Inflammatory_Score),
+                       name = "Inflammation\nScore") + 
+  labs(title = "HALLMARK: Inflammatory Response",
+       subtitle = "MiloR Neighborhood Pathway Activity") +
+  theme_classic()
+
+```
+
+
+
+```{r}
+
+library(fgsea)
+library(dplyr)
+library(ggplot2)
+library(msigdbr)
+
+# 1. Prepare Gene Sets
+hallmark_genes <- msigdbr(species = "Homo sapiens", category = "H")
+pathways_list <- split(x = hallmark_genes$gene_symbol, f = hallmark_genes$gs_name)
+names(pathways_list) <- gsub("HALLMARK_", "", names(pathways_list))
+
+# 2. Extract Markers (Ensure Ident is set correctly)
+Idents(seuratM) <- "clusterName" 
+#seurat_markers <- FindAllMarkers(seuratM, only.pos = FALSE, min.pct = 0.1, logfc.threshold = 0)
+seurat_markers$gene_clean <- gsub(".*\\.", "", seurat_markers$gene)
+
+# 3. Run GSEA Loop with Error Fixes
+cluster_names <- unique(seurat_markers$cluster)
+
+gsea_results_list <- lapply(cluster_names, function(clust) {
+  # Filter and collapse duplicates (keeping highest absolute logFC)
+  clust_data <- seurat_markers %>%
+    filter(cluster == clust) %>%
+    group_by(gene_clean) %>%
+    slice_max(order_by = abs(avg_log2FC), n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  # Force conversion to named numeric vector (fixes the 'list/closure' errors)
+  ranks <- as.numeric(clust_data$avg_log2FC)
+  names(ranks) <- as.character(clust_data$gene_clean)
+  ranks <- sort(ranks[!is.na(ranks)], decreasing = TRUE)
+  
+  # Run fgsea
+  res <- fgsea(pathways = pathways_list, 
+               stats = ranks, 
+               minSize = 15, 
+               maxSize = 500)
+  res$cluster <- clust
+  return(res)
+})
+
+gsea_df <- bind_rows(gsea_results_list)
+
+# 4. Filter for your TARGETED Pathways
+selected_pathways <- c(
+  "IL2_STAT5_SIGNALING", 
+  "IL6_JAK_STAT3_SIGNALING", 
+  "INFLAMMATORY_RESPONSE", 
+  "INTERFERON_ALPHA_RESPONSE", 
+  "INTERFERON_GAMMA_RESPONSE", 
+  "TNFA_SIGNALING_VIA_NFKB", 
+  "TGF_BETA_SIGNALING")
+
+plot_data <- gsea_df %>% filter(pathway %in% selected_pathways)
+
+# 5. Final Publication-Ready DotPlot
+p_gsea <- ggplot(plot_data, aes(x = cluster, y = pathway)) +
+  geom_point(aes(size = -log10(padj), fill = NES), shape = 21, color = "black", stroke = 0.6) +
+  scale_fill_gradient2(low = "#0571b0", mid = "white", high = "#ca0020", midpoint = 0, name = "NES") +
+  scale_size_continuous(range = c(2, 10), name = "-log10(p-adj)") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10, face = "bold"),
+    axis.text.y = element_text(size = 10),
+    aspect.ratio = 0.8,
+    panel.grid.major = element_line(color = "grey90")
+  ) +
+  labs(title = "Targeted Hallmark GSEA", x = NULL, y = "Hallmark Pathway")
+
+print(p_gsea)
+```
+
+
+```{r}
+# 1. Identify Marker Genes for DA Neighborhoods
+# Assuming 'da_results' is your output from testNhoods()
+# and 'milo_obj' is your Milo object
+
+library(miloR)
+
+# Get marker genes for neighborhoods that are significantly increased/decreased
+# You can focus on specific 'nhood' indices or groups
+nhood_markers <- findNhoodMarkers(milo_obj, da_results, aggregate.by="SpatialFDR")
+
+# 2. Create a Ranked List
+# GSEA typically requires genes ranked by a statistic (e.g., logFC * -log10(P-value))
+nhood_markers$rank_stat <- nhood_markers$logFC * -log10(nhood_markers$adj.P.Val)
+gene_list <- nhood_markers$rank_stat
+names(gene_list) <- rownames(nhood_markers)
+gene_list <- sort(gene_list, decreasing = TRUE)
+```
+
+## annotate neighbourhood groups
+```{r}
+
+
+da_clean <- as.data.frame(da_results)
+
+# Force the existing group column into pure text strings
+da_clean$NhoodGroup <- as.character(da_clean$NhoodGroup)
+
+# Safely map the numbers to text using base R (no dplyr tricks!)
+da_clean$NhoodGroup <- ifelse(da_clean$NhoodGroup == "1", "CD8+ terminal effector",
+                       ifelse(da_clean$NhoodGroup == "2", "Regulatory T cells",
+                       ifelse(da_clean$NhoodGroup == "3", "Th17/MAIT",
+                       ifelse(da_clean$NhoodGroup == "4", "NK cells",
+                       ifelse(da_clean$NhoodGroup == "5", "CD4+ Tem",
+                       ifelse(da_clean$NhoodGroup == "6", "CD8+ TEM",
+                       ifelse(da_clean$NhoodGroup == "7", "yd T cells/NKT",
+                       ifelse(da_clean$NhoodGroup == "8", "activated CD8+ T cells",
+                       ifelse(da_clean$NhoodGroup == "9", "Tcm",
+                       "Unannotated/Mixed")))))))))
+
+# Force order for the plots
+da_clean$NhoodGroup <- factor(da_clean$NhoodGroup, levels = c(
+  "CD4+ Tem", "CD8+ TEM", "CD8+ terminal effector", "activated CD8+ T cells",
+  "Tcm", "Regulatory T cells", "Th17/MAIT", "yd T cells/NKT", "NK cells", "Unannotated/Mixed"
+))
+
+p_umap <- plotNhoodGroups(milo_obj, da_clean) + 
+  #scale_fill_manual(values = my_colors, name = "Cell Type") +
+  #scale_color_manual(values = my_colors, name = "Cell Type") +
+  ggtitle("Annotated Milo Neighborhoods") +
+  theme_classic()
+
+# ==============================================================================
+# 3. PLOT DOTPLOT / HEATMAP FOR SELECTED SHORT-NAME GENES
+# ==============================================================================
+# A. Create a plotting copy of Milo and strip the ugly "ENSG..." prefixes
+milo_plot_obj <- milo_obj
+rownames(milo_plot_obj) <- gsub(".*\\.", "", rownames(milo_plot_obj))
+
+# B. Define your exact short-name target genes
+short_markers <- c("CD8A", "GZMB", "IL1B", "CXCL10", "CD79A", "MS4A1", "SLC4A10", "TRDC")
+
+# C. Safe check: Only plot genes that actually exist in your dataset
+valid_markers <- short_markers[short_markers %in% rownames(milo_plot_obj)]
+
+# D. Generate the Expression DotPlot (functions exactly like a Seurat Heatmap)
+# scale = TRUE standardizes the expression so high/low pops out clearly!
+p_dotplot <- plotNhoodExpressionGroups(milo_plot_obj, 
+                                       da.res = da_clean, 
+                                       features = valid_markers,
+                                       scale = TRUE,            
+                                       grid.space = "fixed") +  
+  ggtitle("Marker Expression per Neighborhood Group") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12))
+
+# ==============================================================================
+# 4. VIEW THE FINAL PLOTS SIDE-BY-SIDE
+# ==============================================================================
+p_umap 
+p_dotplot
+
+```
+
+```{r}
+# 1. Create a temporary object for plotting
+milo_plot_obj <- milo_obj
+
+# 2. Clean the rownames (strip the ENSG prefix)
+rownames(milo_plot_obj) <- gsub(".*\\.", "", rownames(milo_plot_obj))
+
+# 3. Define your target genes using SHORT names
+short_markers <- c("CD8A", "GZMB", "IL1B", "CXCL10", "CD79A", "MS4A1", "SLC4A10", "TRDC")
+
+# 4. Generate the Heatmap
+# We aggregate by the 'cluster_annotation' column we just fixed
+plotNhoodExpression(milo_plot_obj, 
+                    da.res = da_results, 
+                    features = short_markers, 
+                    aggregate.by = "cluster_annotation", 
+                    scale = TRUE) + 
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", name = "Z-score") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Marker Expression by Neighborhood Group")
+```
+
+
+
+## compare GREM2 to other t helper subsets
+```{r}
+
+
+get_exact_gene <- function(gene_name) {
+  exact_name <- rownames(seuratM)[grepl(paste0("\\b", gene_name, "$"), rownames(seuratM))]
+  if(length(exact_name) == 0) return(NA)
+  return(exact_name[1])
+}
+
+gene_A <- get_exact_gene("GREM2")   
+gene_B <- get_exact_gene(c("RORC", "CD4", "IL23R", "CCR6"))
+
+
+FeaturePlot(seuratM, 
+            features = c(gene_A, gene_B), 
+            blend = T,      
+            reduction = "umap", 
+            order = T) +     # Plots expressing cells on top
+  theme_classic()
+
+FeaturePlot(seuratM, 
+            features = c(gene_A, gene_B), 
+            blend = F,       # Turns on overlap mode
+            reduction = "umap", 
+            order = T) +     # Plots expressing cells on top
+  theme_classic()
+
+
+# To plot a specific gene directly on the Milo neighborhood circles, we map 
+# the normalized expression from Seurat into the Milo object's colData.
+
+# Extract normalized expression for Gene A
+gene_A_expr <- LayerData(seuratM, assay = "RNA", layer = "data")[gene_A, ]
+
+# Add it to the Milo object
+colData(milo_obj)$Target_Gene_Expr <- as.numeric(gene_A_expr)
+
+# Plot the Milo Neighborhoods colored by the expression of that gene
+plotNhoodGraph(milo_obj, 
+               colour_by = "Target_Gene_Expr", 
+               layout = "UMAP") + 
+  scale_fill_viridis_c(name = gene_A) + # Adds a nice color gradient
+  ggtitle(paste("GREM2")) +
+  theme_classic()
+
+plotNhoodGraph(milo_obj, 
+               colour_by = "Target_Gene_Expr", 
+               layout = "UMAP") + 
+  scale_fill_viridis_c(name = gene_B) + # Adds a nice color gradient
+  ggtitle(paste("GREM2")) +
+  theme_classic()
+
+
+# miloR has a special function that plots Neighborhood LogFC on the X-axis 
+# and Gene Expression on the Y-axis. --> are expanding neighborhoods expressing this gene?
+
+# We need the normalized expression matrix in the Milo object for this to work
+library(SingleCellExperiment)
+logcounts(milo_obj) <- LayerData(seuratM, assay = "RNA", layer = "data")
+
+plotNhoodExpressionDA(milo_obj, 
+                      da.res = da_results, 
+                      features = gene_A, 
+                      alpha = 0.1) + # FDR threshold for significance
+  ggtitle(paste("Is", gene_A, "associated with Inflammation?")) +
+  theme_classic()
+
+
+```
+
+```{r}
+
+target_gene_A <- "GREM2" 
+th17_genes <- c("RORC", "CCR6", "IL23R")
+
+
+
+all_genes <- rownames(seuratM)
+clean_genes <- gsub(".*\\.", "", all_genes)
+
+exact_gene_A <- all_genes[clean_genes == target_gene_A][1]
+exact_th17_genes <- all_genes[clean_genes %in% th17_genes]
+
+if (is.na(exact_gene_A)) stop("Gene A not found in dataset!")
+
+
+seuratM <- AddModuleScore(seuratM, 
+                          features = list(exact_th17_genes), 
+                          name = "Th17_Phenotype_")
+
+
+th17_col_name <- "Th17_Phenotype_1"
+
+
+# Gene A is directly compared against the Combined Th17 Phenotype
+FeaturePlot(seuratM, 
+            features = c(exact_gene_A, th17_col_name), 
+            blend = TRUE,       # Turns on overlap mode (Yellow = Both)
+            reduction = "umap", 
+            order = TRUE) +     # Plots high expression on top
+  theme_classic()
+
+FeaturePlot(seuratM, 
+            features = c(exact_gene_A, th17_col_name), 
+            blend = TRUE,       
+            reduction = "umap", 
+            order = TRUE,
+            # Provide exactly 3 colors: Background, Gene A, Gene B
+            cols = c("lightgrey", "darkred", "blue")) + 
+  theme_classic()
+
+p <- FeaturePlot(seuratM, 
+            features = c(exact_gene_A, th17_col_name), 
+            blend = F,               # <--- Turn off blend
+            reduction = "umap", 
+            order = TRUE,
+            cols = c("lightgrey", "blue")) + # <--- Clean Grey-to-Blue gradient
+  theme_classic()
+
+p
+#p_fixed <- p & 
+ # theme_classic() & 
+  #theme(aspect.ratio = 1,              
+   #     legend.position = "right",     
+    #    plot.title = element_text(size = 10, face = "bold"))
+
+#ggsave("GREM2_Expression_vs.th17.pdf", p_fixed, width = 10, height = 5, dpi = 600)
+
+gene_A_expr <- LayerData(seuratM, assay = "RNA", layer = "data")[exact_gene_A, ]
+
+# AGene A expression AND the Th17 Module Score in Milo's colData
+colData(milo_obj)$Expr_Gene_A <- as.numeric(gene_A_expr)
+colData(milo_obj)$Score_Th17 <- seuratM[[th17_col_name]][, 1]
+
+# Plot them side-by-side on the Milo Neighborhood Graph!
+p_geneA <- plotNhoodGraph(milo_obj, colour_by = "Expr_Gene_A", layout = "UMAP") + 
+  scale_fill_viridis_c(name = target_gene_A) + 
+  ggtitle(paste("Expression:", target_gene_A)) +
+  theme_classic()
+
+plotNhoodGraph(milo_obj, colour_by = "Expr_Gene_A", layout = "UMAP") + 
+  scale_fill_gradient(low = "lightgrey", high = "blue", name = "GREM2 Score") + 
+  ggtitle("GREM2") +
+  theme_classic()
+
+p_th17 <- plotNhoodGraph(milo_obj, colour_by = "Score_Th17", layout = "UMAP") + 
+  scale_fill_viridis_c(name = "Th17 Score") + 
+  ggtitle("Th17 Combined Phenotype") +
+  theme_classic()
+
+plotNhoodGraph(milo_obj, colour_by = "Score_Th17", layout = "UMAP") + 
+  scale_fill_gradient(low = "lightgrey", high = "blue", name = "Th17 Score") + 
+  ggtitle("Th17 Combined Phenotype") +
+  theme_classic()
+
+p_geneA | p_th17 # Display side-by-side
+
+colData(milo_obj)$Th17_Score <- seuratM$Th17_Phenotype_1
+
+
+plotNhoodGraph(milo_obj, 
+               colour_by = "Th17_Score", 
+               layout = "UMAP") + 
+  
+  # Set a clean gradient (e.g., Light Grey for low score, Blue for high score)
+  scale_fill_gradient(low = "lightgrey", high = "blue", name = "Th17 Score") + 
+  
+  ggtitle("Milo Neighborhoods: Th17 Phenotype Score") +
+  theme_classic()
+
+
+```
+
+
+```{r}
+target_gene_A <- "GREM2" 
+th1_genes <- c("CXCR3", "IFNG", "TBX21")
+
+
+all_genes <- rownames(seuratM)
+clean_genes <- gsub(".*\\.", "", all_genes)
+
+exact_gene_A <- all_genes[clean_genes == target_gene_A][1]
+exact_th1_genes <- all_genes[clean_genes %in% th1_genes]
+
+if (is.na(exact_gene_A)) stop("Gene A not found in dataset!")
+
+
+seuratM <- AddModuleScore(seuratM, 
+                          features = list(exact_th1_genes), 
+                          name = "Th1_Phenotype_")
+
+
+th1_col_name <- "Th1_Phenotype_1"
+
+
+# Gene A is directly compared against the Combined Th1 Phenotype
+FeaturePlot(seuratM, 
+            features = c(exact_gene_A, th1_col_name), 
+            blend = TRUE,       # Turns on overlap mode (Yellow = Both)
+            reduction = "umap", 
+            order = TRUE) +     # Plots high expression on top
+  theme_classic()
+
+FeaturePlot(seuratM, 
+            features = c(exact_gene_A, th1_col_name), 
+            blend = TRUE,       
+            reduction = "umap", 
+            order = TRUE,
+            # Provide exactly 3 colors: Background, Gene A, Gene B
+            cols = c("lightgrey", "darkred", "blue")) + 
+  theme_classic()
+
+FeaturePlot(seuratM, 
+            features = c(exact_gene_A, th1_col_name), 
+            blend = FALSE,               # <--- Turn off blend
+            reduction = "umap", 
+            order = TRUE,
+            cols = c("lightgrey", "blue")) + # <--- Clean Grey-to-Blue gradient
+  theme_classic()
+#ggsave("GREM2_Expression_vs.th1.pdf", width = 10, height = 5, dpi = 600)
+
+FeaturePlot(seuratM, 
+            features = c(th1_col_name), 
+            blend = FALSE,               # <--- Turn off blend
+            reduction = "umap", 
+            order = TRUE,
+            cols = c("lightgrey", "blue")) + # <--- Clean Grey-to-Blue gradient
+  theme_classic()
+
+gene_A_expr <- LayerData(seuratM, assay = "RNA", layer = "data")[exact_gene_A, ]
+
+# AGene A expression AND the Th1 Module Score in Milo's colData
+colData(milo_obj)$Expr_Gene_A <- as.numeric(gene_A_expr)
+colData(milo_obj)$Score_Th1 <- seuratM[[th1_col_name]][, 1]
+
+# Plot them side-by-side on the Milo Neighborhood Graph!
+p_geneA <- plotNhoodGraph(milo_obj, colour_by = "Expr_Gene_A", layout = "UMAP") + 
+  scale_fill_viridis_c(name = target_gene_A) + 
+  ggtitle(paste("Expression:", target_gene_A)) +
+  theme_classic()
+
+plotNhoodGraph(milo_obj, colour_by = "Expr_Gene_A", layout = "UMAP") + 
+  scale_fill_gradient(low = "lightgrey", high = "blue", name = "GREM2 Score") + 
+  ggtitle("GREM2") +
+  theme_classic()
+
+p_th17 <- plotNhoodGraph(milo_obj, colour_by = "Score_Th1", layout = "UMAP") + 
+  scale_fill_viridis_c(name = "Th1 Score") + 
+  ggtitle("Th1 Combined Phenotype") +
+  theme_classic()
+
+plotNhoodGraph(milo_obj, colour_by = "Score_Th1", layout = "UMAP") + 
+  scale_fill_gradient(low = "lightgrey", high = "blue", name = "Th1 Score") + 
+  ggtitle("Th1 Combined Phenotype") +
+  theme_classic()
+
+
+
+p_geneA | p_th1 # Display side-by-side
+
+
+
+```
+
+```{r}
+library(Matrix)
+library(ggplot2)
+library(dplyr)
+
+# ==============================================================================
+# 1. CALCULATE THE AVERAGE MODULE SCORE PER NEIGHBORHOOD
+# ==============================================================================
+# Extract the exact module score for each individual cell from Seurat
+# (Ensure the cell barcodes perfectly match the Milo object)
+cell_scores <- seuratM$Th17_Phenotype_1[match(colnames(milo_obj), colnames(seuratM))]
+
+# Extract the Milo Neighborhood matrix (which cells belong to which neighborhoods)
+nhood_mat <- nhoods(milo_obj) 
+
+# Calculate the mathematically exact Mean Score for every single neighborhood
+# (Sum of all cell scores in the neighborhood divided by the number of cells)
+nhood_mean_scores <- as.numeric(crossprod(nhood_mat, cell_scores) / colSums(nhood_mat))
+
+# Name the scores with the exact neighborhood IDs so they align perfectly
+names(nhood_mean_scores) <- colnames(nhood_mat)
+
+# Safely add these average scores directly into your DA results table
+da_results$Th17_Avg_Score <- nhood_mean_scores[as.character(da_results$Nhood)]
+
+# ==============================================================================
+# 2. PLOT THE MODULE SCORE vs DIFFERENTIAL ABUNDANCE
+# ==============================================================================
+# Now we use standard ggplot to recreate the Milo Expression DA plot!
+# Dots in the top-right corner mean Th17 neighborhoods are expanding in Inflammation.
+
+ggplot(da_results, aes(x = logFC, y = Th17_Avg_Score)) +
+  # Draw the neighborhoods as dots. Color them RED if they are significant (FDR < 0.1)
+  geom_point(aes(color = SpatialFDR < 0.1), size = 2.5, alpha = 0.8) +
+  
+  # Set clean colors (Red for significant, Grey for not significant)
+  scale_color_manual(values = c("TRUE" = "red", "FALSE" = "lightgrey"), 
+                     name = "Significant DA\n(FDR < 0.1)") +
+  
+  # Add a vertical line at 0 (No Fold Change)
+  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+  
+  # Clean titles and labels
+  labs(title = "Th17 Phenotype vs Differential Abundance",
+       x = "Neighborhood Log2 Fold Change (Inflamed vs Control)",
+       y = "Average Th17 Module Score") +
+  
+  theme_classic() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+
+library(ggplot2)
+
+# ==============================================================================
+# 1. ADD THE MODULE SCORE TO THE MILO OBJECT
+# ==============================================================================
+# Copy the Th17 Module Score from Seurat into the Milo object's cell metadata.
+# (Make sure "Th17_Phenotype_1" matches the exact column name in seuratM@meta.data)
+colData(milo_obj)$Th17_Score <- seuratM$Th17_Phenotype_1
+
+# ==============================================================================
+# 2. PLOT THE NEIGHBORHOOD GRAPH
+# ==============================================================================
+# Plot the Milo bubbles on the UMAP, colored by the module score
+plotNhoodGraph(milo_obj, 
+               colour_by = "Th17_Score", 
+               layout = "UMAP") + 
+  
+  # Set a clean gradient (e.g., Light Grey for low score, Blue for high score)
+  scale_fill_gradient(low = "lightgrey", high = "blue", name = "Th17 Score") + 
+  
+  ggtitle("Milo Neighborhoods: Th17 Phenotype Score") +
+  theme_classic()
+```
+
+
+```{r}
+# 1. Define your target genes
+gene_A <- get_exact_gene("GREM2")   
+target_genes <- c("RORC", "CD4", "IL23R", "CCR6")
+
+# 2. Preparation for the combined score
+all_genes <- rownames(seuratM)
+clean_genes <- gsub(".*\\.", "", all_genes)
+combined_feature_list <- list()
+
+# 3. Loop for INDIVIDUAL scores
+for (gene in target_genes) {
+  # Find the exact long name
+  exact_name <- all_genes[clean_genes == gene]
+  
+  if(length(exact_name) > 0) {
+    # Add to our combined list for later
+    combined_feature_list <- c(combined_feature_list, exact_name)
+    
+    # Calculate Individual Module Score
+    seuratM <- AddModuleScore(
+      object = seuratM,
+      features = list(exact_name),
+      name = paste0("Score_", gene)
+    )
+    
+    # Plot Individual Score
+    # Note: Seurat adds a '1' to the end of the name you provide
+    p <- FeaturePlot(seuratM, 
+                features = paste0("Score_", gene, "1"), 
+                reduction = "umap", 
+                order = TRUE) + 
+      scale_color_viridis_c(option = "magma") +
+      ggtitle(paste(gene, "Module Score")) +
+      theme_classic()
+    
+    print(p)
+    
+  } else {
+    message(paste("Skipping", gene, "- not found in dataset."))
+  }
+}
+
+# 4. Calculate the COMBINED score
+if(length(combined_feature_list) > 0) {
+  seuratM <- AddModuleScore(
+    object = seuratM,
+    features = list(as.character(combined_feature_list)),
+    name = "Combined_Score"
+  )
+  
+  # Plot Combined Score
+  p_combined <- FeaturePlot(seuratM, 
+                features = "Combined_Score1", 
+                reduction = "umap", 
+                order = TRUE) + 
+      scale_color_viridis_c(option = "viridis") +
+      ggtitle("Combined Score") +
+      theme_classic()
+  
+  print(p_combined)
+  
+}
+
+# Transfer the new scores to your Milo object
+milo_obj@colData$Combined_Score <- seuratM$Combined_Score1
+
+# Visualize the module score directly on the Neighborhood Graph
+plotNhoodGraphDA(milo_obj, da_results, color_by = "Combined_Score")
+
+
+# 1. Pull the Combined Score from Seurat metadata
+# Replace 'Combined_Progenitor_Score1' with the exact name from your seuratM metadata
+combined_score_val <- seuratM@meta.data$Combined_Score1
+
+# 2. Add it to the Milo object colData
+colData(milo_obj)$Combined_Score <- as.numeric(combined_score_val)
+
+# 3. Plot the Milo Neighborhoods colored by the Combined Score
+plotNhoodGraph(milo_obj, 
+               colour_by = "Combined_Score", 
+               layout = "UMAP") + 
+  scale_fill_viridis_c(option = "magma", name = "Module Score") + 
+  ggtitle("Combined Score") +
+  theme_classic()
+
+# Compare Gene A expression vs. the Combined Module Score
+FeaturePlot(seuratM, 
+            features = c(gene_A, "Combined_Score1"), 
+            blend = TRUE, 
+            reduction = "umap", 
+            order = TRUE) + 
+  theme_classic()
+
+
+```
+
+
+```{r}
+
+target_gene <- "GREM2" # Change this to whatever single gene you want!
+
+
+
+all_genes <- rownames(seuratM)
+clean_genes <- gsub(".*\\.", "", all_genes)
+exact_gene_name <- all_genes[clean_genes == target_gene]
+
+
+if(length(exact_gene_name) == 0) {
+  stop(paste("Could not find", target_gene, "in your dataset!"))
+}
+
+
+# Background corrected module score
+seuratM <- AddModuleScore(
+  object = seuratM, 
+  features = list(exact_gene_name), # Must be passed as a list!
+  name = paste0("Score_", target_gene))
+
+score_col_name <- paste0("Score_", target_gene, "1")
+
+#Metadate column plot
+
+FeaturePlot(seuratM, 
+            features = score_col_name, 
+            reduction = "umap", 
+            order = TRUE) +   # Plots cells with high expression on top
+  #scale_color_viridis_c(option = "magma") + # Optional: Use nice glowing colors
+  ggtitle(paste(target_gene, "expression")) +
+  theme_classic()
+
+
+
+```
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# 1. Ensure GeneID is a proper column (sometimes miloR leaves it in the rownames)
+if (!"GeneID" %in% colnames(group_markers)) {
+  group_markers$GeneID <- rownames(group_markers)
+}
+
+# 2. Reshape the dataframe from WIDE to LONG
+long_markers <- group_markers %>%
+  # Select only the GeneID and the stats columns
+  select(GeneID, matches("^(logFC|adj\\.P\\.Val|FDR)_")) %>% 
+  pivot_longer(
+    cols = -GeneID,
+    names_to = c(".value", "NhoodGroup"),
+    # This regex splits the column name exactly at the underscore after logFC/adj.P.Val
+    names_pattern = "^(logFC|adj\\.P\\.Val|FDR)_(.*)$" 
+  )
+
+# 3. Now run your exact filtering code! 
+# (Note: Newer versions of miloR sometimes name the column "FDR" instead of "adj.P.Val". 
+# The code below automatically handles both versions.)
+top_group_markers <- long_markers %>%
+  filter(if("adj.P.Val" %in% colnames(.)) adj.P.Val < 0.05 else FDR < 0.05) %>%
+  filter(logFC > 0) %>%
+  group_by(NhoodGroup) %>%
+  slice_max(n = 10, order_by = logFC) %>%
+  ungroup()
+
+# View the beautiful, clean results
+print(top_group_markers)
+```
+
+
+```{r}
+# ==============================================================================
+# 0. LOAD LIBRARIES
+# ==============================================================================
+library(Seurat)
+library(miloR)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+
+# ==============================================================================
+# 1. DEFINE SIGNATURES & MATCH GENE NAMES (Fixes AddModuleScore Error)
+# ==============================================================================
+immune_signatures <- list(
+ # CD4_TEM       = c("CD4", "CXCR3", "CCL5", "IL7R", ""),
+  #CD8_TEM       = c("CD8A", "CD8B", "GZMB", "PRF1", "KLRG1", "FAS"),
+  CD8_Tem = c("CD8A", "CD8B", "GZMB", "PRF1"),
+  Treg          = c("CD4", "FOXP3", "IL2RA", "CTLA4"),
+  NK_cells      = c("NCAM1", "NKG7", "GNLY", "KLRB1"),
+  NKT_cells  = c("NCAM1", "CD3E",  "TRAC"),
+  Th1_Tem    = c("CD4", "TBX21", "CXCR3", "IFNG"),
+  Th17_Tem   = c("RORC", "CCR6", "IL23R", "CD4"),
+ Th2_Tem = c("CD4", "GATA3", "CCR4", "IL4", "IL5", "IL13"),
+  MAIT          = c("SLC4A10", "ZBTB16", "AQPN3"),
+  gdT           = c("TRDC", "TRGC1", "TRGC2"),#,
+CD8_Tcm       = c("CD8A", "CD8B", "SELL", "CD58", "ITGA4", "ITGAL"))
+#CD4_Tem       = c("CD4", "IL7R", "CD40L", "CD44"))
+
+# Extract Seurat row names and strip any prefixes (e.g., ENSG...CD3E -> CD3E)
+all_genes <- rownames(seuratM)
+clean_genes <- gsub(".*\\.", "", all_genes)
+
+# Match the signatures to your exact Seurat rownames
+matched_signatures <- lapply(immune_signatures, function(genes) {
+  all_genes[clean_genes %in% genes]
+})
+
+# Filter out signatures that didn't find any genes (Prevents AddModuleScore crash)
+lengths <- sapply(matched_signatures, length)
+matched_signatures <- matched_signatures[lengths > 0]
+
+# ==============================================================================
+# 2. RUN MODULE SCORES & ASSIGN TO SEURAT (Fixes 'immune_subset' Error)
+# ==============================================================================
+# Calculate scores
+seuratM <- AddModuleScore(seuratM, features = matched_signatures, name = "SigScore_")
+
+# Extract the scores and rename the columns to match the actual cell types
+score_cols <- paste0("SigScore_", 1:length(matched_signatures))
+cell_scores <- seuratM@meta.data[, score_cols]
+colnames(cell_scores) <- names(matched_signatures)
+
+# Find the highest scoring cell type for every cell
+winning_celltype <- colnames(cell_scores)[max.col(cell_scores, ties.method = "first")]
+
+# Save it to seuratM metadata
+seuratM$Module_CellType <- winning_celltype
+
+# ==============================================================================
+# 3. TRANSFER TO MILO & GROUP NEIGHBORHOODS
+# ==============================================================================
+# Transfer the Seurat annotations to Milo
+colData(milo_obj)$Module_CellType <- seuratM$Module_CellType
+
+# Annotate neighborhoods with these specific signatures
+da_results <- annotateNhoods(milo_obj, da.res = da_results, coldata_col = "Module_CellType")
+
+# Group neighborhoods to find the overarching cell states
+set.seed(1234)
+#da_results <- groupNhoods(milo_obj, da.res = da_results, max.lfc.delta = 1.0)
+
+# ==============================================================================
+# 4. FIND MARKERS PER GROUP (Fixes 'adj.P.Val' Error)
+# ==============================================================================
+# Find markers for each neighborhood group
+#group_markers <- findNhoodGroupMarkers(milo_obj, da.res = da_results, assay = "logcounts")
+
+# Make sure GeneID is a column
+if (!"GeneID" %in% colnames(group_markers)) group_markers$GeneID <- rownames(group_markers)
+
+# Reshape from WIDE to LONG so filter() actually works
+long_markers <- group_markers %>%
+  dplyr::select(GeneID, matches("^(logFC|adj\\.P\\.Val|FDR)_")) %>%
+  pivot_longer(
+    cols = -GeneID,
+    names_to = c(".value", "NhoodGroup"),
+    names_pattern = "^(logFC|adj\\.P\\.Val|FDR)_(.*)$"
+  )
+
+# miloR sometimes uses "FDR" instead of "adj.P.Val", this unifies it
+if ("FDR" %in% colnames(long_markers)) {
+  long_markers <- long_markers %>% rename(adj.P.Val = FDR)
+}
+
+# Now perfectly extract the top 10 markers for every NhoodGroup!
+top_group_markers <- long_markers %>%
+  filter(adj.P.Val < 0.05 & logFC > 0) %>%
+  group_by(NhoodGroup) %>%
+  slice_max(n = 10, order_by = logFC) %>%
+  ungroup()
+
+print("Top Markers successfully calculated! View them by running: View(top_group_markers)")
+
+# ==============================================================================
+# 5. VISUALIZE EVERYTHING
+# ==============================================================================
+# Plot A: The UMAP colored by your Module Cell Types (from Seurat)
+p1 <- plotNhoodGraph(milo_obj, colour_by = "Module_CellType") + 
+  ggtitle("Neighborhoods by Module Score") +
+  theme_classic()
+
+# Plot B: The UMAP colored by unbiased Milo Groups (compare this to top_group_markers)
+p2 <- plotNhoodGroups(milo_obj, da_results) + 
+  ggtitle("Unbiased Milo Groups") +
+  theme_classic()
+
+# Plot C: The Beeswarm plot grouped by your Module Signatures
+p3 <- plotDAbeeswarm(da_results, group.by = "Module_CellType") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA by Module Score Annotations")
+p1
+p2
+p3
+
+
+
+top_group_markers
+```
+
+
+
+```{r}
+library(dplyr)
+library(Seurat)
+
+# 1. Extract the core "Center Cell" barcode for every neighborhood
+center_cell_indices <- unlist(nhoodIndex(milo_obj))
+center_cell_barcodes <- colnames(milo_obj)[center_cell_indices]
+
+# 2. Create a mapping dataframe linking the Neighborhood ID to its Center Cell
+center_df <- data.frame(
+  Nhood = colnames(nhoods(milo_obj)), # The neighborhood IDs (1, 2, 3...)
+  Barcode = center_cell_barcodes      # The exact cell barcode in Seurat
+)
+
+# 3. Merge this with your da_results to get the Group/Custom Name for each center cell
+center_df <- center_df %>%
+  left_join(da_results[, c("Nhood", "NhoodGroup")], by = "Nhood") %>%
+  filter(!is.na(NhoodGroup))
+
+# 4. Add this Group information safely to your Seurat object metadata
+seuratM$Milo_NhoodGroup <- NA
+seuratM$Milo_NhoodGroup[match(center_df$Barcode, colnames(seuratM))] <- center_df$NhoodGroup
+
+# 5. Subset the Seurat object to ONLY include these core neighborhood center cells
+seurat_centers <- subset(seuratM, subset = !is.na(Milo_NhoodGroup))
+
+
+# ==========================================
+# NOW YOU CAN USE STANDARD SEURAT PLOTS!
+# ==========================================
+selected_markers <- c("CD8A", "GZMB", "IL1B", "CXCL10", "CD79A", "MS4A1")
+
+# Plot A: The Classic Seurat DotPlot
+DotPlot(seurat_centers, features = selected_markers, group.by = "Milo_NhoodGroup") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_viridis_c() + # Optional: Use viridis color scale
+  ggtitle("Seurat DotPlot: Milo Neighborhood Centers")
+
+# Plot B: The Classic Seurat Heatmap
+# (Scale the subsetted data first so the heatmap looks clean)
+seurat_centers <- ScaleData(seurat_centers, features = selected_markers)
+
+DoHeatmap(seurat_centers, features = selected_markers, group.by = "Milo_NhoodGroup") +
+  ggtitle("Seurat Heatmap: Milo Neighborhood Centers")
+```
+
+
+```{r}
+# Find the specific genes that define each group
+group_markers <- findNhoodGroupMarkers(milo_obj, 
+                                       da.res = da_results, 
+                                       assay = "logcounts")
+
+# Extract the top 5 genes for each group to help you name them
+top_group_markers <- group_markers %>%
+  filter(adj.P.Val < 0.05 & logFC > 0) %>%
+  group_by(NhoodGroup) %>%
+  slice_max(n = 10, order_by = logFC)
+
+print(top_group_markers[, c("NhoodGroup", "GeneID", "logFC")])
+
+```
+
+
+
+
+
+
+
+```{r}
+
+rare_t_signatures <- list(
+  Th1  = c("TBX21", "CXCR3", "IFNG", "CD3E", "CD3D", "CD3G", "IFIT"),             # T-bet and classic Th1 markers
+  Th17 = c("CD3E", "CD3G", "CD3D", "RORC", "CCR6", "IL17A", "IL23R"),     # RORgt and Th17 markers
+  MAIT = c("SLC4A10", "KLRB1", "ZBTB16", "AQPN3"), # Classic MAIT markers (CD161+)
+  gdT  = c("TRDC", "TRGC1", "TRGC2")              # Gamma-delta TCR chains)
+
+# Ensure genes match your Seurat row names (strip prefixes if needed as you did before)
+clean_genes <- gsub(".*\\.", "", rownames(seuratTcell))
+rare_t_matched <- lapply(rare_t_signatures, function(genes) {
+  rownames(seuratM)[clean_genes %in% genes]
+})
+
+# 1. Calculate module scores in Seurat (Ignores Seurat's bad clusters!)
+seuratM <- AddModuleScore(seuratM, 
+                          features = rare_t_matched, 
+                          name = "RareT_")
+
+# Seurat names the outputs "RareT_1", "RareT_2", etc. Let's rename them for clarity:
+seuratM$Score_Th1  <- seuratM$RareT_1
+seuratM$Score_Th17 <- seuratM$RareT_2
+seuratM$Score_MAIT <- seuratM$RareT_3
+seuratM$Score_gdT  <- seuratM$RareT_4
+
+# 2. Transfer these continuous scores into the Milo object
+colData(milo_obj)$Score_Th1  <- seuratM$Score_Th1
+colData(milo_obj)$Score_Th17 <- seuratM$Score_Th17
+colData(milo_obj)$Score_MAIT <- seuratM$Score_MAIT
+colData(milo_obj)$Score_gdT  <- seuratM$Score_gdT
+
+library(patchwork)
+
+# Plot the 4 signatures on the Milo UMAP
+p1 <- plotNhoodGraph(milo_obj, colour_by = "Score_Th1") + ggtitle("Th1 Signature")
+p2 <- plotNhoodGraph(milo_obj, colour_by = "Score_Th17") + ggtitle("Th17 Signature")
+p3 <- plotNhoodGraph(milo_obj, colour_by = "Score_MAIT") + ggtitle("MAIT Signature")
+p4 <- plotNhoodGraph(milo_obj, colour_by = "Score_gdT") + ggtitle("gamma-delta T Signature")
+
+# Also plot your NhoodGroups so you can compare them side-by-side
+p_groups <- plotNhoodGroups(milo_obj, da_results) + ggtitle("Unbiased Nhood Groups")
+
+# View them all together
+p1
+p2
+p3
+p4
+p_groups
+(p1 | p2) / (p3 | p4) | p_groups
+
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+# 1. Ensure GeneID is a proper column (sometimes miloR leaves it in the rownames)
+if (!"GeneID" %in% colnames(group_markers)) {
+  group_markers$GeneID <- rownames(group_markers)
+}
+
+# 2. Reshape the dataframe from WIDE to LONG
+long_markers <- group_markers %>%
+  # Select only the GeneID and the stats columns
+  select(GeneID, matches("^(logFC|adj\\.P\\.Val|FDR)_")) %>% 
+  pivot_longer(
+    cols = -GeneID,
+    names_to = c(".value", "NhoodGroup"),
+    # This regex splits the column name exactly at the underscore after logFC/adj.P.Val
+    names_pattern = "^(logFC|adj\\.P\\.Val|FDR)_(.*)$" )
+
+# 3. Now run your exact filtering code! 
+# (Note: Newer versions of miloR sometimes name the column "FDR" instead of "adj.P.Val". 
+# The code below automatically handles both versions.)
+top_group_markers <- long_markers %>%
+  filter(if("adj.P.Val" %in% colnames(.)) adj.P.Val < 0.05 else FDR < 0.05) %>%
+  filter(logFC > 0) %>%
+  group_by(NhoodGroup) %>%
+  slice_max(n = 10, order_by = logFC) %>%
+  ungroup()
+
+# View the beautiful, clean results
+print(top_group_markers)
+
+
+```
+
+
+```{r}
+# 1. Rename the groups based on your biological interpretation of the top markers
+da_results <- da_results %>%
+  mutate(Custom_Annotation = case_when(
+    NhoodGroup == "1" ~ "Cytotoxic T-Cells",
+    NhoodGroup == "2" ~ "Inflamed Macrophages",
+    NhoodGroup == "3" ~ "B-Cells",
+    # Add as many as needed based on your top_group_markers table...
+    TRUE ~ "Mixed/Unannotated"
+  ))
+
+# 2. Tell Milo to use these custom names as the official groups
+da_results$NhoodGroup <- da_results$Custom_Annotation
+
+# 3. Visualize the Custom Annotations side-by-side!
+library(patchwork)
+
+# Plot A: UMAP with your Custom Groups
+custom_umap <- plotNhoodGroups(milo_obj, da_results) + 
+  ggtitle("Milo UMAP: Custom Annotations") +
+  theme_classic()
+
+# Plot B: Beeswarm plot using your Custom Groups
+custom_beeswarm <- plotDAbeeswarm(da_results, group.by = "NhoodGroup") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA by Custom Annotated Cell States") +
+  xlab("Cell State") +
+  ylab("Log Fold Change (Inflammation vs Control)")
+
+# Combine plots
+custom_umap + custom_beeswarm
+```
+
+
+
+```{r}
+# 1. CHANGE THE ORDER: Convert NhoodGroup to a factor and set the levels manually
+da_results$NhoodGroup <- factor(da_results$NhoodGroup, levels = c("2", "1", "3", "4"))
+
+# 2. CHANGE THE COLORS: Define custom colors for each group
+custom_colors <- c(
+  "1" = "#E41A1C", # Red
+  "2" = "#377EB8", # Blue
+  "3" = "#4DAF4A", # Green
+  "4" = "#984EA3"  # Purple)
+
+# 3. Plot with the custom order and colors
+plotNhoodGroups(milo_obj, da_results) + 
+  scale_color_manual(values = custom_colors) + # Use scale_color_manual for Milo nodes
+  ggtitle("Neighborhood Groups (Custom Colors & Order)") +
+  theme_classic()
+
+
+```
+
+
+
+```{r}
+# 1. Rename the groups based on your biological interpretation of the top markers
+da_results <- da_results %>%
+  mutate(Custom_Annotation = case_when(
+    NhoodGroup == "1" ~ "Cytotoxic T-Cells",
+    NhoodGroup == "2" ~ "Inflamed Macrophages",
+    NhoodGroup == "3" ~ "B-Cells",
+    # Add as many as needed based on your top_group_markers table...
+    TRUE ~ "Mixed/Unannotated"
+  ))
+
+# 2. Tell Milo to use these custom names as the official groups
+da_results$NhoodGroup <- da_results$Custom_Annotation
+
+# 3. Visualize the Custom Annotations side-by-side!
+library(patchwork)
+
+# Plot A: UMAP with your Custom Groups
+custom_umap <- plotNhoodGroups(milo_obj, da_results) + 
+  ggtitle("Milo UMAP: Custom Annotations") +
+  theme_classic()
+
+# Plot B: Beeswarm plot using your Custom Groups
+custom_beeswarm <- plotDAbeeswarm(da_results, group.by = "NhoodGroup") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA by Custom Annotated Cell States") +
+  xlab("Cell State") +
+  ylab("Log Fold Change (Inflammation vs Control)")
+
+# Combine plots
+custom_umap + custom_beeswarm
+```
+
+
+
+
+
+
+```{r}
+# 1. Rename the groups based on your biological interpretation of the top markers
+da_results <- da_results %>%
+  mutate(Custom_Annotation = case_when(
+    NhoodGroup == "1" ~ "Cytotoxic T-Cells",
+    NhoodGroup == "2" ~ "Inflamed Macrophages",
+    NhoodGroup == "3" ~ "B-Cells",
+    # Add as many as needed based on your top_group_markers table...
+    TRUE ~ "Mixed/Unannotated"
+  ))
+
+# 2. Tell Milo to use these custom names as the official groups
+da_results$NhoodGroup <- da_results$Custom_Annotation
+
+# 3. Visualize the Custom Annotations side-by-side!
+library(patchwork)
+
+# Plot A: UMAP with your Custom Groups
+custom_umap <- plotNhoodGroups(milo_obj, da_results) + 
+  ggtitle("Milo UMAP: Custom Annotations") +
+  theme_classic()
+
+# Plot B: Beeswarm plot using your Custom Groups
+custom_beeswarm <- plotDAbeeswarm(da_results, group.by = "NhoodGroup") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA by Custom Annotated Cell States") +
+  xlab("Cell State") +
+  ylab("Log Fold Change (Inflammation vs Control)")
+
+# Combine plots
+custom_umap + custom_beeswarm
+```
+
+
+```{r}
+# network layout for plotting
+milo_obj <- buildNhoodGraph(milo_obj)
+
+# Differential Abundance Graph
+da_plot <- plotNhoodGraphDA(milo_obj, 
+                            da_results, 
+                            layout = "UMAP", 
+                            alpha = 0.1)     # Transparency threshold for significance
+
+da_plot + 
+  ggtitle("Differential Abundance: Inflamed vs. non inflamed") +
+  theme_classic()
+```
+
+
+
+```{r}
+# Plot DA log-fold changes grouped by the cell type annotations we added
+plotDAbeeswarm(da_results, group.by = ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA Neighborhoods by Cell Type") +
+  xlab("Cell Type Annotation") +
+  ylab("Log Fold Change (Inflammation vs Control)"))
+```
+
+```{r}
+# 1. Calculate markers for all neighborhood groups
+Milo_markers <- findNhoodGroupMarkers(milo_obj, 
+                                       da.res = da_results, 
+                                       assay = "logcounts")
+
+# 2. Filter for significance (all genes, no 'slice' limit)
+Milo_all_sig <- Milo_markers %>%
+  filter(adj.P.Val < 0.05 & logFC > 0) %>%
+  arrange(NhoodGroup, desc(logFC)) # Optional: sorts them for easier reading
+
+# 3. View the full list or save it
+print(Milo_all_sig[, c("NhoodGroup", "GeneID", "logFC", "adj.P.Val")])
+
+# Optional: Save to CSV for external analysis (e.g., in Excel or Pathway tools)
+# write.csv(Milo_all_sig, "Milo_significant_markers.csv", row.names = FALSE)
+
+```
+
+
+```{r}
+#DefaultAssay(seuratM) <- "RNA"
+
+# marker genes (module scores)
+immune_signatures <- list(
+  CD4_TEM     = c("CD3E", "CD3G", "CD4", "CXCR3", "GZMK", "CCL5", "IL7R"),
+  CD8_TEM     = c("CD3E", "CD3G", "CD8A", "CD8B", "GZMB", "PRF1", "KLRG1", "FAS"),
+  activated_CD8 = c("MKI67", "CD3G", "CD8A", "CD8B", "GZMB", "PRF1", "KLRG1", "FAS"),
+  Treg        = c("CD3E", "CD3G", "CD4", "FOXP3", "IL2RA", "CTLA4"),
+  NK_cells    = c("NCAM1", "NKG7", "GNLY", "KLRB1"),
+  Th1_helper  = c("CD4", "TBX21", "CXCR3", "IFNG", "STAT1", "CD3E", "CD3D", "CD3G"),
+  Th17_helper = c("CD3E", "CD3G", "CD3D", "RORC", "CCR6", "IL17A", "IL23R", "CD4"),
+  MAIT = c("SLC4A10", "KLRB1", "ZBTB16", "AQPN3"),
+  gdT  = c("TRDC", "TRGC1", "TRGC2"))
+
+```
+
+
+```{r}
+Th1  = c("TBX21", "CXCR3", "IFNG", "CD3E", "CD3D", "CD3G", "IFIT")            # T-bet and classic Th1 markers
+  Th17 = c("CD3E", "CD3G", "CD3D", "RORC", "CCR6", "IL17A", "IL23R")    # RORgt and Th17 markers
+  MAIT = c("SLC4A10", "KLRB1", "ZBTB16", "AQPN3") # Classic MAIT markers (CD161+)
+  gdT  = c("TRDC", "TRGC1", "TRGC2")              # Gamma-delta TCR chains)
+
+
+```
+
+
+```{r}
+
+
+all_genes <- rownames(seuratM)
+clean_genes <- gsub(".*\\.", "", all_genes)
+
+# genes are matched to ENSG format
+immune_signatures_matched <- lapply(immune_signatures, function(target_genes) {
+  matched_genes <- all_genes[clean_genes %in% target_genes]
+  return(matched_genes)
+})
+
+# Remove any signatures that found fewer than 2 genes, AddModuleScore crashes otherwise
+lengths <- sapply(immune_signatures_matched, length)
+immune_signatures_matched <- immune_signatures_matched[lengths >= 2]
+
+
+print(sapply(immune_signatures_matched, length))
+
+
+
+# filtered, matched list
+seuratM <- AddModuleScore(
+  object = seuratM,
+  features = immune_signatures_matched,
+  name = "SigScore_")
+
+score_cols <- paste0("SigScore_", 1:length(immune_signatures_matched))
+cell_scores <- seuratM@meta.data[, score_cols]
+
+colnames(cell_scores) <- names(immune_signatures_matched)
+
+# Assign cell type with highest score
+seuratM$Module_CellType <- colnames(cell_scores)[max.col(cell_scores, ties.method = "first")]
+
+# Verify it worked in Seurat
+print(table(seuratM$Module_CellType))
+
+
+## annotations from Seurat are copied into Milo object
+colData(milo_obj)$Module_CellType <- seuratM$Module_CellType
+
+da_results <- annotateNhoods(milo_obj, 
+                             da.res = da_results, 
+                             coldata_col = "Module_CellType")
+
+
+plotDAbeeswarm(da_results, group.by = "Module_CellType") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA Neighborhoods by Module Score") +
+  xlab("Cell Type") +
+  ylab("Log Fold Change (Inflammation vs Control)")
+
+```
+
+
+```{r}
+milo_obj <- buildNhoodGraph(milo_obj)
+
+# Differential Abundance Graph
+da_plot <- plotNhoodGraphDA(milo_obj, 
+                            da_results, 
+                            layout = "UMAP", 
+                            alpha = 0.1)     # Transparency threshold for significance
+
+da_plot + 
+  ggtitle("Differential Abundance: Inflamed vs. non inflamed") +
+  theme_classic()
+
+```
+
+```{r}
+# 0. Load necessary libraries
+library(Seurat)
+library(miloR)
+library(SingleCellExperiment)
+library(dplyr)
+library(ggplot2)
+library(patchwork) # For combining plots side-by-side
+
+# ==============================================================================
+# STEP 1: PREPARE THE MILO OBJECT
+# ==============================================================================
+# Convert Seurat object to SingleCellExperiment, then to Milo
+sce <- as.SingleCellExperiment(seuratTcell)
+milo_obj <- Milo(sce)
+
+# ==============================================================================
+# STEP 2: FIND UNBIASED NEIGHBORHOODS
+# ==============================================================================
+# Milo builds a KNN graph using your existing PCA space, ignoring clusters.
+# 'd' = number of PCA dimensions (commonly 30)
+# 'k' = number of nearest neighbors (commonly 30)
+milo_obj <- buildGraph(milo_obj, k = 30, d = 30, reduced.dim = "PCA")
+
+# Define representative neighborhoods across the continuous space
+milo_obj <- makeNhoods(milo_obj, prop = 0.1, k = 30, d = 30, reduced_dims = "PCA")
+
+# Calculate neighborhood distances (required for spatial FDR correction later)
+milo_obj <- calcNhoodDistance(milo_obj, d = 30, reduced.dim = "PCA")
+
+# ==============================================================================
+# STEP 3: COUNT CELLS & DIFFERENTIAL ABUNDANCE TEST
+# ==============================================================================
+# Count how many cells from each sample are in each neighborhood
+milo_obj <- countCells(milo_obj, meta.data = as.data.frame(colData(milo_obj)), sample = "sample")
+
+# Create the exact design matrix (Fixing the rownames issue you had earlier)
+milo_design <- data.frame(colData(milo_obj))[, c("sample", "Inflammation_status")] %>% 
+  distinct() %>% 
+  tibble::remove_rownames() %>% 
+  tibble::column_to_rownames("sample")
+
+# Run the Differential Abundance (DA) test
+da_results <- testNhoods(milo_obj, 
+                         design = ~ Inflammation_status, 
+                         design.df = milo_design)
+```
+
+
+```{r}
+# ==============================================================================
+# STEP 4: ANNOTATE NEIGHBORHOODS
+# ==============================================================================
+# Annotate neighborhoods based on the highest scoring cell type from your Seurat markers
+da_results <- annotateNhoods(milo_obj, 
+                             da.res = da_results, 
+                             coldata_col = "Module_CellType")
+
+# ==============================================================================
+# STEP 5: VISUALIZE ON UMAP
+# ==============================================================================
+# Build the visual neighborhood graph using the UMAP coordinates from Seurat
+milo_obj <- buildNhoodGraph(milo_obj)
+
+# Plot A: Milo UMAP showing the DA results (Red/Blue bubbles)
+plot_da <- plotNhoodGraphDA(milo_obj, 
+                            da_results, 
+                            layout = "UMAP", 
+                            alpha = 0.1) + 
+  ggtitle("DA: Inflamed vs Control") +
+  theme_classic()
+
+# Plot B: Milo UMAP showing the majority Cell Type for each neighborhood
+plot_anno <- plotNhoodGraph(milo_obj, 
+                            colour_by = "Module_CellType", 
+                            layout = "UMAP") + 
+  ggtitle("Milo Neighborhoods by Cell Type") +
+  theme_classic()
+plot_anno
+
+# Plot C: Seurat UMAP showing individual cells and their marker-assigned types
+# This helps you see why some neighborhoods might look "messy"
+plot_seurat <- DimPlot(seuratM, 
+                       group.by = "Module_CellType", 
+                       reduction = "umap", 
+                       label = TRUE, 
+                       repel = TRUE) +
+  ggtitle("Single Cells (Ground Truth)") +
+  theme_classic() +
+  theme(legend.position = "none") # Hide legend to save space
+
+# Combine all three plots nicely using patchwork
+(plot_da | plot_anno) / plot_seurat
+```
+
+
+
+```{r}
+library(patchwork)
+
+# Plot 1: The DA graph you already created
+da_plot <- plotNhoodGraphDA(milo_obj, 
+                            da_results, 
+                            layout = "UMAP", 
+                            alpha = 0.1) + 
+  ggtitle("DA: Inflamed vs. Control") + 
+  theme_classic()
+
+# Plot 2: Neighborhood graph colored by Cell Type annotation
+# This plots the dominant cell type for each neighborhood on the UMAP
+anno_plot <- plotNhoodGraph(milo_obj, 
+                            color_by = "Module_CellType", 
+                            layout = "UMAP", 
+                            alpha = 0.1) + 
+  ggtitle("Neighborhood Cell Types") +
+  theme_classic()
+
+# Plot side-by-side to compare where DA is happening vs which cell types are there
+da_plot + anno_plot
+
+# Look at the distribution of neighborhood purity
+hist(da_results$Module_CellType_fraction, 
+     main="Neighborhood Purity Distribution", 
+     xlab="Fraction of dominant cell type")
+
+# Filter da_results to only include "clean" neighborhoods 
+# (e.g., where at least 60% or 70% of the cells match the assigned label)
+da_results_clean <- subset(da_results, Module_CellType_fraction >= 0.6)
+
+# Re-plot the Beeswarm with ONLY clean neighborhoods
+clean_beeswarm <- plotDAbeeswarm(da_results_clean, group.by = "Module_CellType") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggtitle("DA Neighborhoods (Clean Clusters Only >60% Purity)") +
+  xlab("Cell Type") +
+  ylab("Log Fold Change (Inflammation vs Control)")
+
+print(clean_beeswarm)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Calculate relative abundance (proportions) of cell types per sample
+abundance_df <- seuratM@meta.data %>%
+  group_by(Inflammation_status, sample, Module_CellType) %>%
+  summarise(CellCount = n(), .groups = 'drop') %>%
+  group_by(Inflammation_status, sample) %>%
+  mutate(TotalCells = sum(CellCount),
+         RelativeAbundance = CellCount / TotalCells)
+
+# Plot Relative Abundance as a stacked bar chart
+# Average the relative abundance across samples for the two conditions
+summary_abundance <- abundance_df %>%
+  group_by(Inflammation_status, Module_CellType) %>%
+  summarise(MeanAbundance = mean(RelativeAbundance), .groups = 'drop')
+
+rel_abundance_plot <- ggplot(summary_abundance, 
+                             aes(x = Inflammation_status, 
+                                 y = MeanAbundance, 
+                                 fill = Module_CellType)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_classic() +
+  labs(title = "Relative Abundance of Cell Types",
+       x = "Status",
+       y = "Percentage of Cells",
+       fill = "Cell Type")
+
+print(rel_abundance_plot)
+```
+
+
+```{r}
+library(ggplot2)
+library(Seurat)
+
+# Plot the categorical cell type assignments on the UMAP
+DimPlot(seuratTcell, 
+        group.by = "Module_CellType", 
+        reduction = "umap", 
+        label = TRUE, 
+        repel = TRUE) +
+  ggtitle("Cell Types assigned by Max Module Score") +
+  theme_classic()
+
+library(scater)
+
+
+library(miloR)
+library(ggplot2)
+
+# 1. Re-build the neighborhood graph (fixes the error)
+milo_obj <- buildNhoodGraph(milo_obj)
+
+# 2. Plot the Milo Neighborhoods colored by the dominant cell type
+# (This maps your Module_CellType onto the Milo graph nodes)
+plotNhoodGraph(milo_obj, 
+               colour_by = "Module_CellType", 
+               layout = "UMAP") + 
+  ggtitle("Milo Neighborhoods colored by Cell Type") +
+  theme_classic()
+
+```
+
+```{r}
+
+```
+
+## annotation SingleR and celldex
+```{r}
+library(SingleR)
+library(celldex)
+
+# 1. Download the reference atlas
+immune_ref <- MonacoImmuneData()
+
+# 2. Extract the data matrix (Seurat v5)
+seurat_counts <- LayerData(seuratM, assay = "RNA", layer = "data")
+
+# 3. Clean the gene names (Using the same regex logic you used earlier!)
+clean_genes <- gsub(".*\\.", "", rownames(seurat_counts))
+
+# Note: Row names in a matrix MUST be unique. Stripping prefixes sometimes 
+# creates duplicate gene names. We use make.unique() to prevent an error here.
+rownames(seurat_counts) <- make.unique(clean_genes)
+
+# 4. Now run SingleR! (They will now successfully share common genes)
+predictions <- SingleR(test = seurat_counts, 
+                       ref = immune_ref, 
+                       labels = immune_ref$label.fine) # label.main for broader labels
+
+# 5. Add to Seurat metadata
+seuratM$SingleR_CellType <- predictions$labels
+
+# 6. Check your beautiful new unbiased annotations!
+DimPlot(seuratM, 
+        group.by = "SingleR_CellType", 
+        label = TRUE, 
+        repel = TRUE) +
+  ggtitle("Unbiased SingleR Annotations") +
+  theme_classic()
+
+# Transfer the new labels to Milo
+colData(milo_obj)$SingleR_CellType <- seuratM$SingleR_CellType
+
+# Annotate Milo Neighborhoods
+da_results <- annotateNhoods(milo_obj, 
+                             da.res = da_results, 
+                             coldata_col = "SingleR_CellType")
+
+# Re-plot the Beeswarm with the clean, automated labels
+plotDAbeeswarm(da_results, group.by = "SingleR_CellType") +
+  ggtitle("DA Neighborhoods by Automated SingleR Cell Types")
+
+```
+
+
+```{r}
+table(seuratM$Inflammation_status, seuratM$sample)
+
+Non-inflamed <- c("Graz-AM-02", "HeartRNAseq-AM-30", "HeartRNAseq-AM-31", "ZH-Immpath-AM-10", "ZH-Immpath-AM-12",  "ZH-Immpath-AM-18", "ZH-Immpath-AM-27", "ZH-Immpath-AM-35",  "ZH-Immpath-AM-37",  "ZH-Immpath-AM-47", "ZH-Immpath-AM-54", 
+"ZH-Immpath-AM-59", "ZH-Immpath-AM-86")
+
+Inflamed <- c("Berlin-AM-1041", "Berlin-AM-1537", "Berlin-AM-979", "Graz-AM-01", "Graz-AM-15", "ZH-Immpath-AM-02", "ZH-Immpath-AM-29", "ZH-Immpath-AM-61", "ZH-Immpath-AM-63", "ZH-Immpath-AM-77", "ZH-Immpath-AM-84", "ZH-Immpath-AM-85", "ZH-Immpath-AM-98")
+
+
+seuratM@meta.data %>%
+  distinct(sample, Inflammation_status) %>%
+  count(Inflammation_status)
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Calculate relative abundance (proportions) of cell types per sample
+abundance_df <- seuratM@meta.data %>%
+  group_by(Inflammation_status, sample, Module_CellType) %>%
+  summarise(CellCount = n(), .groups = 'drop') %>%
+  group_by(Inflammation_status, sample) %>%
+  mutate(TotalCells = sum(CellCount),
+         RelativeAbundance = CellCount / TotalCells)
+
+# Plot Relative Abundance as a stacked bar chart
+# Average the relative abundance across samples for the two conditions
+summary_abundance <- abundance_df %>%
+  group_by(Inflammation_status, Module_CellType) %>%
+  summarise(MeanAbundance = mean(RelativeAbundance), .groups = 'drop')
+
+rel_abundance_plot <- ggplot(summary_abundance, 
+                             aes(x = Inflammation_status, 
+                                 y = MeanAbundance, 
+                                 fill = Module_CellType)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_classic() +
+  labs(title = "Relative Abundance of Cell Types",
+       x = "Status",
+       y = "Percentage of Cells",
+       fill = "Cell Type")
+
+print(rel_abundance_plot)
+```
+
+```{r}
+# We can map the purity fraction back to the milo_obj colData for plotting
+# Note: Because purity is calculated per-neighborhood, it's easier to plot the nodes directly
+library(igraph)
+
+# Extract UMAP coordinates of the neighborhoods
+nhood_coords <- reducedDim(milo_obj, "UMAP")
+
+# Plot the UMAP colored by Purity fraction
+ggplot(da_results, aes(x = SpatialFDR, y = logFC, color = Module_CellType_fraction)) +
+  geom_point() +
+  scale_color_viridis_c(name = "Purity\nFraction") +
+  theme_classic() +
+  labs(title = "LogFC vs Significance colored by Nhood Purity")
+```
+
+
+
+
+
+
