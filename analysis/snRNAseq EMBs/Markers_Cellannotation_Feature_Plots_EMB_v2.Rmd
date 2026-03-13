@@ -60,7 +60,7 @@ library(presto)
 
 #seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/EMB_Myocarditis_SC_transformed_doublet_removal_annotated_full_metadata_09_3_26")
 
-seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_SC_transformed_doublet_removal_annotated_full_metadata_09_3_26")
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis_v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_SC_transformed_doublet_removal_annotated_full_metadata_09_3_26")
 
 table(seuratM$orig.ident)
 table(seuratM$clusterName)

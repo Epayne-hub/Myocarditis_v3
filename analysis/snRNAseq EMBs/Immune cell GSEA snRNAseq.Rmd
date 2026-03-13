@@ -60,7 +60,7 @@ library(presto)
 
 #seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/EMB_Myocarditis_Immunecell_GSEA_logtransform.rds")
 
-seuratM <- readRDS("~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_Immunecells_GSEA_logtransform_annotated_07_03_2026.rds")
+seuratM <- readRDS("~/Documents/GitHub/Myocarditis_v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_Immunecells_GSEA_logtransform_annotated_07_03_2026.rds")
 
 table(seuratM$orig.ident)
 table(seuratM$clusterName)
@@ -162,7 +162,7 @@ seuratM <- seuratIm
 
 
 
-```{r}
+```{r, include = F}
 
 DefaultAssay(seuratM) <- "RNA"
 
@@ -189,7 +189,7 @@ for (i in 1:length(res)) {
 ```
 
 ```{r}
-saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq EMBs/EMB_Myocarditis_Immunecells_GSEA_logtransform_annotated_07_03_2026.rds")
+#saveRDS(seuratM, file="~/Documents/GitHub/Myocarditis EMB Project v3/data/Merged snRNAseq #EMBs/EMB_Myocarditis_Immunecells_GSEA_logtransform_annotated_07_03_2026.rds")
 
 ```
 

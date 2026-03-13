@@ -16,7 +16,7 @@ seed <- 1234
 
 
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE, Load all required packages}
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
 #library(ExploreSCdataSeurat3)
 #library(runSeurat3)
