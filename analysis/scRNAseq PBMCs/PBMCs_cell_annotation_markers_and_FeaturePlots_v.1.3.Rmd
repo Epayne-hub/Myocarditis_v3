@@ -194,6 +194,25 @@ DimPlot(seuratM, reduction = "umap",label = F, repel = TRUE, cols = colclusterNa
 
 ```
 
+
+```{r}
+genes <- data.frame(gene=rownames(seuratM)) %>% 
+  mutate(geneID=gsub("^.*\\.", "", gene))
+
+selGenes <- data.frame(geneID=c("GREM2", "GREM1", "BMP4", "BMPR1A", "BMPR2", "BMP2K", "BMP8A", "BMP1", "BMP6", "BMP4","BMP7", "HGF", "MET", "ENG", "BMPER", "TWSG1", "ACVR2A", "NOG", "CHRD", "FGF2", "FST", "TGFBR3", "TGFB1", "TGFBR2", "SHH", "RUNX2")) %>% 
+  left_join(., genes, by="geneID")
+
+Idents(seuratM) <- seuratM$clusterName
+#pdf("violin_plots_EMB_allcells_Immpath_GREM_BMP_receptors.pdf", width = 8, height = 6)
+pList <- sapply(selGenes$gene, function(x){
+  p <- VlnPlot( object = seuratM, features = x, pt.size = 0.1, cols=colclusterName)
+  plot(p)
+})
+
+
+```
+
+
 ## Relatice abundances per visit Baseline vs. 12 months
 ```{r}
 
@@ -232,7 +251,7 @@ ggplot(dat_sub, aes(x = 2, y = percent, fill = Var1)) +
 ```
 
 ## Marker genes heatmap
-```{r, fig.height = 11}
+```{r, fig.height = 12}
 
 genes <- data.frame(gene=rownames(seuratM)) %>% 
   mutate(geneID=gsub("^.*\\.", "", gene))

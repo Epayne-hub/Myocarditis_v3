@@ -66,12 +66,23 @@ table(seuratM$orig.ident)
 table(seuratM$clusterName)
 ```
 
+```{r}
+## CD46, complement complosome: Kemper; 
+#CD109 negatively regulates th17 respones; CD26
+##C3aR --> mTOR, C5aR1
+
+## CD109 is upregulated during th1 induction
+## CD26 and CD109 interacts in cis on activated human CD4+ T cells, colcoloization, co immunoprecpation and mst eperiments, 
+
+#phylo trajectories
+
+```
 
 
 
 ```{r}
 
-Idents(seuratM) <- seuratM$RNA_snn_res.0.4
+Idents(seuratM) <- seuratM$clusterName
 
 levels(seuratM)
 markers <- FindAllMarkers(seuratM, only.pos = T) %>%
@@ -708,6 +719,8 @@ DimPlot(seuratM, reduction = "umap",label = TRUE)
 
 
 genesPlot <- data.frame(gene= c("CD3D", "CD3E", "TRBC1,", "RORA", "CD69", "CD4", "IL7R", "SELL", "GREM2", "FOXP3",  "ICOS", "CTLA4", "CD40LG", "IFNG", "CXCR3", "CD8A", "CD8B", "KLRG1", "ID2", "ID3", "CD27", "CD28", "CD38", "MKI67", "KLF2", "FAS", "CD58", "ITGA4", "GZMB", "TBX21",  "NCAM1", "KLRD1", "TRGC1",  "FCGR3A", "SLC4A10",  "CCR6", "RORC", "CCR7",  "MS4A1", "CD79A", "IGHM", "JCHAIN", "TREM1", "CD14", "CSF1R", "CD163", "CD1C",  "SIGLEC1", "STAB1", "GREM1", "CLEC9A", "IGAM", "ITGAX",   "CLEC12A", "CCR2", "CD68","CCR2", "APOE", "CXCL10", "TLR7", "CLEC4C", "IL3RA", "IFIT1",  "XCR1", "C5AR1", "FCER1A", "CD209", "TOX", "TIGIT", "PDCD1"))
+
+genesPlot <- data.frame(gene= c("CCR8", "RORC", "CD1C",  "SIGLEC1", "STAB1", "GREM1", "CLEC9A", "IGAM", "ITGAX",   "CLEC12A", "CCR2", "CD68","CCR2", "APOE", "CXCL10", "TLR7", "CLEC4C", "IL3RA", "IFIT1",  "XCR1", "C5AR1", "FCER1A", "CD209", "TOX", "TIGIT", "PDCD1"))
 #pdf(file="~/Documents/GitHub/Myocarditis EMB Project v3/docs/EMBs/marker_genes_immune_cells_heatmapv2.pdf")
 
 pdf("heatmap_marker_gene_immune.pdf", width = 8, height = 14) 

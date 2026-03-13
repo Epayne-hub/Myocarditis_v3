@@ -1,0 +1,26 @@
+{
+    "id": "A5A66A62",
+    "path": "~/Documents/GitHub/Myocarditis_v3/analysis/snRNAseq EMBs/EMB_DEGenes_snRNAseq_Volcanov2.Rmd",
+    "project_path": "analysis/snRNAseq EMBs/EMB_DEGenes_snRNAseq_Volcanov2.Rmd",
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1773411384514.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "62,180",
+        "scrollLine": "51"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1773215939,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1773215939,
+    "read_only": false,
+    "read_only_alternatives": []
+}
